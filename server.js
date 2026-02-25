@@ -79,7 +79,7 @@ const server = http.createServer((req, res) => {
                                 hex: hexData,
                                 stdout: 'Successfully compiled for RP2040.',
                                 stderr: '',
-                                compile_output: 'Built .hex image successfully.'
+                                compile_output: ''
                             }));
                         } catch (e) {
                             res.writeHead(200, { 'Content-Type': 'application/json' });

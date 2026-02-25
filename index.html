@@ -1980,7 +1980,8 @@
 
         window.runRP2040Firmware = (hexString, onLedChange) => {
             if (activeMCU) {
-                activeMCU.stop(); // Stop previous run
+                // The previous loop terminates because activeMCU will no longer equal the old mcu instance
+                activeMCU = null;
             }
 
             const mcu = new RP2040();
