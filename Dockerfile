@@ -16,7 +16,6 @@ WORKDIR /app
 # Since there's no package.json, we'll just copy the main files
 COPY server.js .
 COPY index.html .
-COPY lib ./lib
 
 # Expose the application port
 EXPOSE 8080
