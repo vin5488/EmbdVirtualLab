@@ -1158,6 +1158,7 @@
                     { id: 'C_ADV', name: 'Advanced C', icon: 'fas fa-microchip', difficulty: 'Advanced', projectCount: 20, desc: 'Data Structures, Memory Management.' },
                     { id: 'CPP_INT', name: 'Intermediate C++', icon: 'fas fa-laptop-code', difficulty: 'Intermediate', projectCount: 20, desc: 'OOP, STL, Templates.' },
                     { id: 'CPP_ADV', name: 'Advanced C++', icon: 'fas fa-cogs', difficulty: 'Advanced', projectCount: 20, desc: 'Design Patterns, Modern C++ Features.' },
+                    { id: 'MCU_SIM_RP2040', name: 'RP2040 Emulation (Hardware-in-the-Loop) ✨', icon: 'fas fa-microchip text-emerald-400', difficulty: 'Advanced', projectCount: 1, desc: 'True hardware emulation! Compiles C to ARM .hex binaries and runs them on a virtual Raspberry Pi Pico CPU inside your browser.' },
                     { id: 'MCU_SIM', name: 'MCU Simulations', icon: 'fas fa-microchip', difficulty: 'Advanced', projectCount: 1, desc: 'Bare-metal embedded C simulations handling memory-mapped registers, state machines, and peripherals.' },
                     { id: 'MBD_FUND', name: 'MBD Fundamentals', icon: 'fas fa-project-diagram', difficulty: 'Intermediate', projectCount: 20, desc: 'Conceptual C implementations of Simulink-style blocks. Focus: Gain, PID, Filter, and Logic modeling.' },
                     { id: 'MBD_ADV', name: 'Advanced MBD & AUTOSAR', icon: 'fas fa-car', difficulty: 'Advanced', projectCount: 20, desc: 'Simulating production-grade MBD patterns in C: AUTOSAR RTE, ECU Diagnostics (UDS), and Control Algorithms.' }
@@ -1170,6 +1171,9 @@
                 ],
 
                 projects: [
+                    // --- True Emulation (RP2040) ---
+                    { id: 'RP2040-01', topicId: 'MCU_SIM_RP2040', target: 'rp2040', title: 'Raspberry Pi Pico Blink (True Hardware Emulation)', difficulty: 'Advanced', points: 1000, statement: 'Welcome to the Core Magic layer! Unlike other projects on this platform, this code is NOT run as a normal PC program. It is cross-compiled to an ARM `.hex` firmware byte array. Complete the logic to turn on GPIO 25 (the Pico onboard LED).', acceptance: ['Writes 1 to GPIO 25', 'Executes via rp2040js emulator'], deliverables: ['main.c'], inputSpec: 'Real RP2040 CPU simulator', outputSpec: 'LED state updates', files: [{ name: 'main.c', content: '#include <stdint.h>\n\n// --- Bare Metal RP2040 GPIO --- \n// SIO Base Address\n#define SIO_BASE 0xd0000000\n// GPIO Output Value register (direct write)\n#define SIO_GPIO_OUT_OFFSET 0x010\n\nint main() {\n    volatile uint32_t *gpio_out = (volatile uint32_t *)(SIO_BASE + SIO_GPIO_OUT_OFFSET);\n    \n    // TODO: Write a 1 to bit 25 to turn on the onboard LED\n    // This will directly trigger the hardware simulator!\n    *gpio_out = 0;\n\n    while(1) {\n       // Loop forever (standard embedded practice)\n    }\n    return 0;\n}' }], testCases: [] },
+
                     // --- Microcontroller Simulations (MCU_SIM) ---
                     { id: 'MCU_SIM-01', topicId: 'MCU_SIM', title: 'STM32 Traffic Light Controller', difficulty: 'Advanced', points: 500, statement: 'Implement a non-blocking traffic light controller using memory-mapped register structs (simulating STM32 GPIO). Update the ODR register using bitwise operations to cycle a Red, Yellow, Green LED state machine based on the simulated clock tick.', acceptance: ['Bitwise manipulation', 'Memory-mapped structs', 'State Machine logic'], deliverables: ['main.c'], inputSpec: 'Simulated clock ticks', outputSpec: 'LED states', files: [{ name: 'main.c', content: '#include <stdint.h>\n#include <stdio.h>\n\n// --- Simulated STM32 Registers ---\ntypedef struct {\n    uint32_t MODER;   \n    uint32_t ODR;     \n} GPIO_TypeDef;\n\nGPIO_TypeDef simulated_gpio;\n#define GPIOA (&simulated_gpio)\n\n#define PIN_RED    5\n#define PIN_YELLOW 6\n#define PIN_GREEN  7\n\nvoid GPIO_Init() {\n    GPIOA->MODER |= ((1 << (PIN_RED * 2)) | (1 << (PIN_YELLOW * 2)) | (1 << (PIN_GREEN * 2)));\n    GPIOA->ODR = 0;\n}\n\n// TODO: Implement TrafficLight_Update\n// Requirements:\n// 1. GREEN (pin 7) for 3 ticks (tick 0, 1, 2)\n// 2. YELLOW (pin 6) for 1 tick (tick 3)\n// 3. RED (pin 5) for 3 ticks (tick 4, 5, 6)\n// 4. Repeat pattern (Tick 7 is Green again)\n// Modify GPIOA->ODR directly using bitwise operations to turn the LEDs on/off.\n// Note: Do not use loops inside this function, as it is called iteratively.\nvoid TrafficLight_Update(uint32_t tick) {\n    // Your code here!\n    \n}\n\nint main() {\n    GPIO_Init();\n    printf("--- STM32 Traffic Light Simulation ---\\n");\n    \n    for(uint32_t t=0; t<8; t++) {\n        TrafficLight_Update(t);\n        uint32_t out = GPIOA->ODR;\n        printf("Tick %d | R:%d Y:%d G:%d\\n", \n               t, \n               (out >> PIN_RED) & 1, \n               (out >> PIN_YELLOW) & 1, \n               (out >> PIN_GREEN) & 1);\n    }\n    return 0;\n}' }], testCases: [{ name: 'Tick 0 (Green)', stdin: '', expectedOutput: 'Tick 0 | R:0 Y:0 G:1' }, { name: 'Tick 3 (Yellow)', stdin: '', expectedOutput: 'Tick 3 | R:0 Y:1 G:0' }, { name: 'Tick 4 (Red)', stdin: '', expectedOutput: 'Tick 4 | R:1 Y:0 G:0' }, { name: 'Tick 7 (Green Wrap)', stdin: '', expectedOutput: 'Tick 7 | R:0 Y:0 G:1' }] },
 
@@ -1604,9 +1608,32 @@
                             this.updateLineNumbers(); // Refresh line numbers with error highlighting
                             this.buildReport = { success: false, logs };
                         } else {
-                            if (result.stdout) logs.push({ time: time(), text: 'Output:\n' + result.stdout, type: 'info' });
-                            if (result.stderr) logs.push({ time: time(), text: 'Stderr:\n' + result.stderr, type: 'warning' });
-                            logs.push({ time: time(), text: '✓ Execution Successful', type: 'success' });
+                            if (this.activeProject && this.activeProject.target === 'rp2040' && result.hex) {
+                                logs.push({ time: time(), text: '✓ Firmware compiled successfully to .hex format', type: 'success' });
+                                logs.push({ time: time(), text: '→ Starting RP2040 Virtual Hardware...', type: 'info' });
+
+                                try {
+                                    // Start the Wokwi rp2040js element
+                                    if (window.runRP2040Firmware) {
+                                        window.runRP2040Firmware(result.hex, (pinState) => {
+                                            if (pinState) {
+                                                logs.push({ time: time(), text: '💡 GPIO 25 (LED) turned ON', type: 'success' });
+                                            } else {
+                                                logs.push({ time: time(), text: '💡 GPIO 25 (LED) turned OFF', type: 'info' });
+                                            }
+                                        });
+                                        logs.push({ time: time(), text: '--- Emulator Running ---', type: 'info' });
+                                    } else {
+                                        logs.push({ time: time(), text: '✗ Hardware emulator not loaded yet.', type: 'error' });
+                                    }
+                                } catch (err) {
+                                    logs.push({ time: time(), text: '✗ Hardware Emulator Crash: ' + err.message, type: 'error' });
+                                }
+                            } else {
+                                if (result.stdout) logs.push({ time: time(), text: 'Output:\n' + result.stdout, type: 'info' });
+                                if (result.stderr) logs.push({ time: time(), text: 'Stderr:\n' + result.stderr, type: 'warning' });
+                                logs.push({ time: time(), text: '✓ Execution Successful', type: 'success' });
+                            }
                             this.buildReport = { success: true, logs };
                         }
                     } else {
@@ -1781,7 +1808,8 @@
                             body: JSON.stringify({
                                 source_code: source_code,
                                 stdin: stdin || "",
-                                filename: this.activeFiles[this.activeFileIdx] ? this.activeFiles[this.activeFileIdx].name : 'main.c'
+                                filename: this.activeFiles[this.activeFileIdx] ? this.activeFiles[this.activeFileIdx].name : 'main.c',
+                                target: this.activeProject && this.activeProject.target ? this.activeProject.target : 'native'
                             })
                         });
                         return await response.json();
@@ -1837,6 +1865,70 @@
                 }
             }
         }
+    </script>
+    <!-- Load RP2040 Emulator via ES Modules -->
+    <script type="module">
+        import { RP2040 } from 'https://esm.sh/rp2040js';
+
+        let activeMCU = null;
+
+        // Simple Intel HEX parser to load into flash memory
+        function parseHex(hexData, flash) {
+            const lines = hexData.split('\n');
+            let extendedLinearAddress = 0;
+            for (const line of lines) {
+                if (line[0] !== ':') continue;
+                const byteCount = parseInt(line.substring(1, 3), 16);
+                const address = parseInt(line.substring(3, 7), 16);
+                const recordType = parseInt(line.substring(7, 9), 16);
+
+                if (recordType === 0x00) { // Data record
+                    const baseAddress = extendedLinearAddress + address;
+                    // Ensure we are writing to the 0x10000000 flash region
+                    const flashOffset = baseAddress - 0x10000000;
+                    if (flashOffset >= 0 && flashOffset < flash.length) {
+                        for (let i = 0; i < byteCount; i++) {
+                            const byte = parseInt(line.substring(9 + i * 2, 11 + i * 2), 16);
+                            flash[flashOffset + i] = byte;
+                        }
+                    }
+                } else if (recordType === 0x04) { // Extended Linear Address Record
+                    extendedLinearAddress = parseInt(line.substring(9, 13), 16) << 16;
+                }
+            }
+        }
+
+        window.runRP2040Firmware = (hexString, onLedChange) => {
+            if (activeMCU) {
+                activeMCU.stop(); // Stop previous run
+            }
+
+            const mcu = new RP2040();
+
+            // Allocate 2MB Flash (simulating a Pico)
+            const flash = new Uint8Array(2 * 1024 * 1024);
+            parseHex(hexString, flash);
+
+            // Map the ROM and Flash
+            // To completely bypass bootrom for raw hex, we inject a tiny mock bootrom
+            // Or we just set the PC to 0x10000000 and SP to the top of RAM
+            mcu.core.PC = 0x10000000;
+            mcu.core.SP = 0x20042000; // Top of SRAM
+
+            // Load flash memory
+            for (let i = 0; i < flash.length; i += 4) {
+                const word = flash[i] | (flash[i + 1] << 8) | (flash[i + 2] << 16) | (flash[i + 3] << 24);
+                if (word !== 0) mcu.writeUint32(0x10000000 + i, word);
+            }
+
+            // Hook up the onboard LED (GPIO 25 on Pico)
+            mcu.gpio[25].addListener((state) => {
+                onLedChange(state);
+            });
+
+            mcu.execute();
+            activeMCU = mcu;
+        };
     </script>
 </body>
 

@@ -50,6 +50,44 @@ const server = http.createServer((req, res) => {
                 const data = JSON.parse(body);
                 const sourceCode = data.source_code;
                 const stdin = data.stdin || '';
+                const target = data.target || 'native'; // 'native' or 'rp2040'
+
+                if (target === 'rp2040') {
+                    const tmpDir = os.tmpdir();
+                    const timestamp = Date.now();
+                    const srcPath = path.join(tmpDir, `rp2040_${timestamp}.c`);
+                    const elfPath = path.join(tmpDir, `rp2040_${timestamp}.elf`);
+                    const hexPath = path.join(tmpDir, `rp2040_${timestamp}.hex`);
+
+                    fs.writeFileSync(srcPath, sourceCode);
+
+                    // Compile for ARM Cortex-M0+ and generate HEX. 
+                    // Use -nostartfiles and -Ttext=0x10000000 to match rp2040js plain flashing to flash memory
+                    const compileCmd = `arm-none-eabi-gcc -O2 -mcpu=cortex-m0plus -mthumb -ffreestanding -nostartfiles -Wl,-Ttext=0x10000000 "${srcPath}" -o "${elfPath}" && arm-none-eabi-objcopy -O ihex "${elfPath}" "${hexPath}"`;
+
+                    exec(compileCmd, (compileErr, stdout, stderr) => {
+                        if (compileErr) {
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            return res.end(JSON.stringify({ error: true, compile_output: stderr || stdout || compileErr.message, stdout: '', stderr: '' }));
+                        }
+                        try {
+                            const hexData = fs.readFileSync(hexPath, 'utf8');
+                            try { fs.unlinkSync(srcPath); fs.unlinkSync(elfPath); fs.unlinkSync(hexPath); } catch (e) { }
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            return res.end(JSON.stringify({
+                                error: false,
+                                hex: hexData,
+                                stdout: 'Successfully compiled for RP2040.',
+                                stderr: '',
+                                compile_output: 'Built .hex image successfully.'
+                            }));
+                        } catch (e) {
+                            res.writeHead(200, { 'Content-Type': 'application/json' });
+                            return res.end(JSON.stringify({ error: true, compile_output: 'Failed to read hex file.', stdout: '', stderr: '' }));
+                        }
+                    });
+                    return;
+                }
 
                 // Auto-detect C++ vs C
                 const isCpp = /^\s*#include\s*<(iostream|fstream|sstream|vector|string|map|set|list|queue|stack|deque|algorithm|functional|numeric|memory|utility|tuple|array|bitset|regex|chrono|thread|mutex|cmath|cstdlib|cstring|cstdio|climits|cfloat|cassert|cctype|ctime)>/m.test(sourceCode)
