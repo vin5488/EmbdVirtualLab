@@ -695,61 +695,147 @@
                                                 </h4>
 
                                                 <div class="relative w-64 h-auto">
-                                                    <!-- Simple SVG representation of Raspberry Pi Pico -->
-                                                    <svg viewBox="0 0 200 400" xmlns="http://www.w3.org/2000/svg"
+                                                    <!-- Detailed SVG representation of Raspberry Pi Pico -->
+                                                    <svg viewBox="-30 -20 260 540" xmlns="http://www.w3.org/2000/svg"
                                                         class="drop-shadow-2xl filter block mx-auto">
                                                         <defs>
-                                                            <!-- Board Base -->
-                                                            <rect id="board" width="180" height="380" rx="10" x="10"
-                                                                y="10" fill="#1b5e20" />
-                                                            <!-- GPIO Pins -->
-                                                            <pattern id="pins" x="0" y="0" width="10" height="20"
-                                                                patternUnits="userSpaceOnUse">
-                                                                <circle cx="5" cy="10" r="3" fill="#b0bec5" />
-                                                                <circle cx="5" cy="10" r="1.5" fill="#263238" />
-                                                            </pattern>
+                                                            <!-- Real board dimensions roughly 21mm x 51mm, scaled up -> 210x510 -->
+                                                            <rect id="board" width="210" height="510" rx="15" x="0"
+                                                                y="0" fill="#2E7D32" stroke="#1B5E20"
+                                                                stroke-width="2" />
+
+                                                            <!-- Detailed Pin Pad (with hole) -->
+                                                            <g id="pin-pad">
+                                                                <rect x="-6" y="-3" width="12" height="6" rx="3"
+                                                                    fill="#FFE082" />
+                                                                <circle cx="0" cy="0" r="1.5" fill="#212121" />
+                                                            </g>
                                                         </defs>
 
-                                                        <!-- PCB Body -->
+                                                        <!-- PCB Base -->
                                                         <use href="#board" />
 
                                                         <!-- Micro USB Port -->
-                                                        <rect x="75" y="0" width="50" height="15" fill="#cfd8dc"
-                                                            rx="2" />
-                                                        <rect x="85" y="5" width="30" height="5" fill="#455a64"
-                                                            rx="1" />
+                                                        <rect x="75" y="-5" width="60" height="35" fill="#CFD8DC" rx="3"
+                                                            stroke="#90A4AE" stroke-width="1.5" />
+                                                        <rect x="85" y="-5" width="40" height="15" fill="#37474F" />
+                                                        <rect x="95" y="10" width="20" height="10" fill="#90A4AE" />
 
+                                                        <!-- Core Components -->
                                                         <!-- RP2040 Chip -->
-                                                        <rect x="65" y="160" width="70" height="70" rx="2"
+                                                        <rect x="65" y="220" width="80" height="80" rx="3"
                                                             fill="#212121" stroke="#424242" stroke-width="2" />
-                                                        <circle cx="72" cy="167" r="2" fill="#616161" />
-                                                        <!-- Pin 1 dot -->
-                                                        <text x="100" y="195" font-family="monospace" font-size="10"
-                                                            fill="#9e9e9e" text-anchor="middle">RP2040</text>
+                                                        <circle cx="75" cy="230" r="3" fill="#757575" />
+                                                        <!-- Pin 1 indicator -->
+                                                        <text x="105" y="255" font-family="'Courier New', monospace"
+                                                            font-size="12" font-weight="bold" fill="#BDBDBD"
+                                                            text-anchor="middle">RP2040</text>
+                                                        <text x="105" y="270" font-family="'Courier New', monospace"
+                                                            font-size="8" fill="#757575" text-anchor="middle">RPI</text>
 
-                                                        <!-- Flash Memory -->
-                                                        <rect x="75" y="250" width="50" height="40" rx="1"
-                                                            fill="#212121" stroke="#424242" />
+                                                        <!-- Flash Memory (W25Q16JVUXIQ) -->
+                                                        <rect x="80" y="330" width="50" height="40" rx="2"
+                                                            fill="#212121" stroke="#424242" stroke-width="1.5" />
+                                                        <circle cx="85" cy="335" r="2" fill="#757575" />
+
+                                                        <!-- Oscillator (12MHz) -->
+                                                        <rect x="85" y="160" width="40" height="20" rx="2"
+                                                            fill="#CFD8DC" stroke="#90A4AE" />
+                                                        <text x="105" y="173" font-family="'Courier New', monospace"
+                                                            font-size="8" fill="#455A64"
+                                                            text-anchor="middle">12.0</text>
 
                                                         <!-- BOOTSEL Button -->
-                                                        <rect x="130" y="60" width="20" height="15" rx="1"
-                                                            fill="#e0e0e0" />
-                                                        <rect x="135" y="63" width="10" height="9" rx="4.5"
+                                                        <rect x="145" y="100" width="25" height="20" rx="2"
+                                                            fill="#EEEEEE" stroke="#BDBDBD" />
+                                                        <rect x="150" y="105" width="15" height="10" rx="4"
                                                             fill="#212121" />
+                                                        <text x="157" y="132" font-family="sans-serif" font-size="8"
+                                                            font-weight="bold" fill="#FFFFFF"
+                                                            text-anchor="middle">BOOT</text>
 
-                                                        <!-- Left Pins -->
-                                                        <rect x="15" y="25" width="10" height="340" fill="url(#pins)" />
+                                                        <!-- Voltage Regulator (RT6150) -->
+                                                        <rect x="40" y="100" width="25" height="30" rx="1"
+                                                            fill="#212121" />
+                                                        <rect x="45" y="95" width="15" height="5" fill="#BDBDBD" />
+                                                        <!-- Tab -->
 
-                                                        <!-- Right Pins -->
-                                                        <rect x="175" y="25" width="10" height="340"
-                                                            fill="url(#pins)" />
+                                                        <!-- Inductor (for power supply) -->
+                                                        <rect x="40" y="140" width="30" height="30" rx="2"
+                                                            fill="#424242" />
+
+                                                        <!-- Left Pin Header (GP0 to GP15) -->
+                                                        <g transform="translate(10, 30)">
+                                                            <!-- GP0 down to GP15 mapped linearly -->
+                                                            <template x-for="i in 20">
+                                                                <use href="#pin-pad" :y="(i-1) * 23.5" />
+                                                            </template>
+                                                        </g>
+
+                                                        <!-- Right Pin Header (VBUS, VSYS, GND, 3V3, ADC, GP28-GP16) -->
+                                                        <g transform="translate(200, 30)">
+                                                            <template x-for="i in 20">
+                                                                <use href="#pin-pad" :y="(i-1) * 23.5" />
+                                                            </template>
+                                                        </g>
+
+                                                        <!-- Labels for Key Left Pins -->
+                                                        <g font-family="'SF Mono', Consolas, monospace" font-size="10"
+                                                            font-weight="bold" fill="#B2DFDB">
+                                                            <text x="25" y="33">GP0</text>
+                                                            <text x="25" y="56">GP1</text>
+                                                            <text x="25" y="80">GND</text>
+                                                            <text x="25" y="103">GP2</text>
+                                                            <text x="25" y="127">GP3</text>
+                                                            <text x="25" y="150">GP4</text>
+                                                            <text x="25" y="174">GP5</text>
+                                                            <text x="25" y="197">GND</text>
+                                                            <text x="25" y="221">GP6</text>
+                                                            <text x="25" y="244">GP7</text>
+                                                            <text x="25" y="268">GP8</text>
+                                                            <text x="25" y="291">GP9</text>
+                                                            <text x="25" y="315">GND</text>
+                                                            <text x="25" y="338">GP10</text>
+                                                            <text x="25" y="362">GP11</text>
+                                                            <text x="25" y="385">GP12</text>
+                                                            <text x="25" y="409">GP13</text>
+                                                            <text x="25" y="432">GND</text>
+                                                            <text x="25" y="456">GP14</text>
+                                                            <text x="25" y="479">GP15</text>
+                                                        </g>
+
+                                                        <!-- Labels for Key Right Pins -->
+                                                        <g font-family="'SF Mono', Consolas, monospace" font-size="10"
+                                                            font-weight="bold" fill="#B2DFDB" text-anchor="end">
+                                                            <text x="185" y="33">VBUS</text>
+                                                            <text x="185" y="56">VSYS</text>
+                                                            <text x="185" y="80">GND</text>
+                                                            <text x="185" y="103">3V3_EN</text>
+                                                            <text x="185" y="127">3V3_OUT</text>
+                                                            <text x="185" y="150">ADC_VREF</text>
+                                                            <text x="185" y="174">GP28/A2</text>
+                                                            <text x="185" y="197">GND</text>
+                                                            <text x="185" y="221">GP27/A1</text>
+                                                            <text x="185" y="244">GP26/A0</text>
+                                                            <text x="185" y="268">RUN</text>
+                                                            <text x="185" y="291">GP22</text>
+                                                            <text x="185" y="315">GND</text>
+                                                            <text x="185" y="338">GP21</text>
+                                                            <text x="185" y="362">GP20</text>
+                                                            <text x="185" y="385">GP19</text>
+                                                            <text x="185" y="409">GP18</text>
+                                                            <text x="185" y="432">GND</text>
+                                                            <text x="185" y="456">GP17</text>
+                                                            <text x="185" y="479">GP16</text>
+                                                        </g>
+
                                                     </svg>
 
-                                                    <!-- Dynamic Onboard LED (Pinned to arbitrary coord on the SVG) -->
-                                                    <!-- Pico LED is roughly center top right -->
-                                                    <div class="absolute w-4 h-4 rounded-full transition-all duration-75"
-                                                        style="top: 22%; left: 35%;"
-                                                        :class="rp2040LEDOn ? 'bg-green-400 shadow-[0_0_20px_10px_rgba(74,222,128,0.7)] scale-110' : 'bg-green-900 border border-green-800 scale-100'">
+                                                    <!-- Dynamic Onboard LED (GP25 is physically near the micro-USB on the top left/center) -->
+                                                    <!-- Specifically, Pico LED is above left of the BOOTSEL button -->
+                                                    <div class="absolute w-5 h-5 rounded-full transition-all duration-75"
+                                                        style="top: 15%; left: 30%; margin-top: -10px"
+                                                        :class="rp2040LEDOn ? 'bg-green-400 shadow-[0_0_25px_15px_rgba(74,222,128,0.8)] scale-110' : 'bg-[#1a381e] border-2 border-[#122b15] scale-100'">
                                                     </div>
                                                 </div>
                                             </div>
