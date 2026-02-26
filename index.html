@@ -1078,7 +1078,8 @@
                             class="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden group hover:border-blue-500/50 transition-all shadow-2xl">
                             <div
                                 class="absolute -right-4 -top-4 text-blue-500/10 text-7xl group-hover:scale-110 transition-transform">
-                                <i class="fas fa-users"></i></div>
+                                <i class="fas fa-users"></i>
+                            </div>
                             <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total
                                 Candidates</div>
                             <div class="text-4xl font-black text-white" x-text="candidates.length"></div>
@@ -1091,7 +1092,8 @@
                             class="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden group hover:border-emerald-500/50 transition-all shadow-2xl">
                             <div
                                 class="absolute -right-4 -top-4 text-emerald-500/10 text-7xl group-hover:scale-110 transition-transform">
-                                <i class="fas fa-cloud-upload-alt"></i></div>
+                                <i class="fas fa-cloud-upload-alt"></i>
+                            </div>
                             <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total
                                 Submissions</div>
                             <div class="text-4xl font-black text-white" x-text="allSubmissions.length"></div>
@@ -1104,7 +1106,8 @@
                             class="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden group hover:border-amber-500/50 transition-all shadow-2xl">
                             <div
                                 class="absolute -right-4 -top-4 text-amber-500/10 text-7xl group-hover:scale-110 transition-transform">
-                                <i class="fas fa-clock"></i></div>
+                                <i class="fas fa-clock"></i>
+                            </div>
                             <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Pending
                                 Review</div>
                             <div class="text-4xl font-black text-amber-400"
@@ -1114,20 +1117,7 @@
                                 <i class="fas fa-exclamation-circle"></i> Requires attention
                             </div>
                         </div>
-                        <!-- Stat Card 4 -->
-                        <div
-                            class="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden group hover:border-red-500/50 transition-all shadow-2xl">
-                            <div
-                                class="absolute -right-4 -top-4 text-red-500/10 text-7xl group-hover:scale-110 transition-transform">
-                                <i class="fas fa-user-ninja"></i></div>
-                            <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Global
-                                Violations</div>
-                            <div class="text-4xl font-black text-red-500"
-                                x-text="allSubmissions.reduce((sum, s) => sum + (s.violationCount || 0), 0)"></div>
-                            <div class="mt-4 flex items-center gap-2 text-[10px] font-bold text-red-400">
-                                <i class="fas fa-skull"></i> Integrity warnings
-                            </div>
-                        </div>
+
                     </div>
 
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -1257,9 +1247,7 @@
                                         <th
                                             class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase text-center">
                                             Auto %</th>
-                                        <th
-                                            class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase text-center">
-                                            Violations</th>
+
                                         <th
                                             class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase text-center">
                                             Final</th>
@@ -1291,11 +1279,7 @@
                                                 x-text="sub.day"></td>
                                             <td class="px-5 py-4 text-center text-sm font-bold text-blue-400"
                                                 x-text="sub.autoScore + '%'"></td>
-                                            <td class="px-5 py-4 text-center">
-                                                <span
-                                                    :class="sub.violationCount > 0 ? 'text-red-500 animate-pulse font-bold' : 'text-slate-600'"
-                                                    class="text-xs" x-text="sub.violationCount || 0"></span>
-                                            </td>
+
                                             <td class="px-5 py-4 text-center text-sm font-black"
                                                 :class="sub.grade ? 'text-emerald-400' : 'text-slate-600'"
                                                 x-text="sub.grade ? sub.grade.compositeScore + '%' : '—'"></td>
