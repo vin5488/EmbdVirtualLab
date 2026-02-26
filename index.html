@@ -274,13 +274,11 @@
                 </template>
                 <template x-if="user.role === 'admin'">
                     <div class="flex gap-6">
-                        <button @click="currentView = 'admin'"
-                            :class="currentView === 'admin' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500'"
-                            class="px-2 py-4 text-xs font-bold uppercase tracking-widest transition-all">Analytics
-                            Hub</button>
-                        <button @click="currentView = 'admin_submissions'; loadAllSubmissions()"
-                            :class="currentView === 'admin_submissions' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-slate-500'"
-                            class="px-2 py-4 text-xs font-bold uppercase tracking-widest transition-all">Submissions</button>
+                        <button @click="currentView = 'admin_dashboard'"
+                            :class="currentView === 'admin_dashboard' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500'"
+                            class="px-2 py-4 text-xs font-bold uppercase tracking-widest transition-all">
+                            Admin Command Center
+                        </button>
                     </div>
                 </template>
             </nav>
@@ -1034,374 +1032,523 @@
             </div>
         </div>
 
-        <!-- Admin Submissions Hub -->
-        <div x-show="currentView === 'admin_submissions'" class="h-full overflow-y-auto p-10 bg-slate-950">
-            <div class="max-w-7xl mx-auto">
-                <div class="flex justify-between items-end mb-8">
-                    <div>
-                        <h2 class="text-3xl font-black text-white tracking-tighter">Assignment <span
-                                class="text-emerald-500">Submissions</span></h2>
-                        <p class="text-xs text-slate-500 mt-1">Review and grade candidate submissions.</p>
+        <!-- ================================================================= -->
+        <!-- Unified Admin Command Center -->
+        <!-- ================================================================= -->
+        <div x-show="currentView === 'admin_dashboard'" class="h-full overflow-y-auto bg-slate-950">
+            <!-- Admin Top Bar / Tab Navigation -->
+            <div
+                class="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-10 py-4 shadow-xl">
+                <div class="max-w-7xl mx-auto flex justify-between items-center">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white">
+                            <i class="fas fa-shield-alt"></i>
+                        </div>
+                        <h2 class="text-xl font-black text-white tracking-tighter uppercase italic">Admin <span
+                                class="text-blue-500">Command Center</span></h2>
                     </div>
-                    <div class="flex items-center gap-3">
-                        <select x-model="adminDayFilter" @change="loadAllSubmissions()"
-                            class="bg-slate-900 border border-slate-800 text-slate-300 text-xs rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="">All Days</option>
-                            <option value="1">Day 1</option>
-                            <option value="2">Day 2</option>
-                            <option value="3">Day 3</option>
-                            <option value="4">Day 4</option>
-                            <option value="5">Day 5</option>
-                        </select>
-                        <select x-model="adminSubFilter" @change="loadAllSubmissions()"
-                            class="bg-slate-900 border border-slate-800 text-slate-300 text-xs rounded-xl px-4 py-2 outline-none focus:ring-2 focus:ring-blue-500">
-                            <option value="all">All Status</option>
-                            <option value="pending">Pending</option>
-                            <option value="graded">Graded</option>
-                        </select>
-                        <button @click="loadAllSubmissions()"
-                            class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-xl text-xs border border-slate-700 transition-all">
-                            <i class="fas fa-sync-alt"></i>
+
+                    <nav class="flex items-center bg-slate-950/50 p-1 rounded-xl border border-slate-800">
+                        <button @click="adminTab = 'overview'"
+                            :class="adminTab === 'overview' ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40' : 'text-slate-500 hover:text-slate-300'"
+                            class="px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">
+                            Overview
                         </button>
+                        <button @click="adminTab = 'submissions'; loadAllSubmissions()"
+                            :class="adminTab === 'submissions' ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-900/40' : 'text-slate-500 hover:text-slate-300'"
+                            class="px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">
+                            Submissions
+                        </button>
+                        <button @click="adminTab = 'analytics'"
+                            :class="adminTab === 'analytics' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-900/40' : 'text-slate-500 hover:text-slate-300'"
+                            class="px-5 py-2 rounded-lg text-[10px] font-black uppercase tracking-widest transition-all">
+                            Analytics Hub
+                        </button>
+                    </nav>
+                </div>
+            </div>
+
+            <div class="max-w-7xl mx-auto p-10">
+
+                <!-- Tab: Overview (The "WOW" Dashboard) -->
+                <div x-show="adminTab === 'overview'" x-transition class="space-y-10">
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                        <!-- Stat Card 1 -->
+                        <div
+                            class="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden group hover:border-blue-500/50 transition-all shadow-2xl">
+                            <div
+                                class="absolute -right-4 -top-4 text-blue-500/10 text-7xl group-hover:scale-110 transition-transform">
+                                <i class="fas fa-users"></i></div>
+                            <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total
+                                Candidates</div>
+                            <div class="text-4xl font-black text-white" x-text="candidates.length"></div>
+                            <div class="mt-4 flex items-center gap-2 text-[10px] font-bold text-emerald-400">
+                                <i class="fas fa-arrow-up"></i> 12% from last week
+                            </div>
+                        </div>
+                        <!-- Stat Card 2 -->
+                        <div
+                            class="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden group hover:border-emerald-500/50 transition-all shadow-2xl">
+                            <div
+                                class="absolute -right-4 -top-4 text-emerald-500/10 text-7xl group-hover:scale-110 transition-transform">
+                                <i class="fas fa-cloud-upload-alt"></i></div>
+                            <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Total
+                                Submissions</div>
+                            <div class="text-4xl font-black text-white" x-text="allSubmissions.length"></div>
+                            <div class="mt-4 flex items-center gap-2 text-[10px] font-bold text-blue-400">
+                                <i class="fas fa-sync-alt fa-spin"></i> Real-time tracking
+                            </div>
+                        </div>
+                        <!-- Stat Card 3 -->
+                        <div
+                            class="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden group hover:border-amber-500/50 transition-all shadow-2xl">
+                            <div
+                                class="absolute -right-4 -top-4 text-amber-500/10 text-7xl group-hover:scale-110 transition-transform">
+                                <i class="fas fa-clock"></i></div>
+                            <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Pending
+                                Review</div>
+                            <div class="text-4xl font-black text-amber-400"
+                                x-text="allSubmissions.filter(s => s.status === 'pending').length"></div>
+                            <div
+                                class="mt-4 flex items-center gap-2 text-[10px] font-bold text-amber-500 animate-pulse">
+                                <i class="fas fa-exclamation-circle"></i> Requires attention
+                            </div>
+                        </div>
+                        <!-- Stat Card 4 -->
+                        <div
+                            class="bg-slate-900 border border-slate-800 p-6 rounded-3xl relative overflow-hidden group hover:border-red-500/50 transition-all shadow-2xl">
+                            <div
+                                class="absolute -right-4 -top-4 text-red-500/10 text-7xl group-hover:scale-110 transition-transform">
+                                <i class="fas fa-user-ninja"></i></div>
+                            <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Global
+                                Violations</div>
+                            <div class="text-4xl font-black text-red-500"
+                                x-text="allSubmissions.reduce((sum, s) => sum + (s.violationCount || 0), 0)"></div>
+                            <div class="mt-4 flex items-center gap-2 text-[10px] font-bold text-red-400">
+                                <i class="fas fa-skull"></i> Integrity warnings
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        <!-- Recent Activity -->
+                        <div class="lg:col-span-2 space-y-4">
+                            <h3
+                                class="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2 ml-1">
+                                <i class="fas fa-history text-blue-500"></i> Recent Platform Activity
+                            </h3>
+                            <div class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl">
+                                <div class="p-6 space-y-6">
+                                    <template x-for="sub in allSubmissions.slice(0, 5)" :key="sub.id">
+                                        <div class="flex items-center justify-between group cursor-pointer"
+                                            @click="adminTab = 'submissions'; openGrading(sub)">
+                                            <div class="flex items-center gap-4">
+                                                <div
+                                                    class="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400 group-hover:bg-blue-600 group-hover:text-white transition-all">
+                                                    <i class="fas"
+                                                        :class="sub.status === 'graded' ? 'fa-check-double text-emerald-400' : 'fa-clock text-amber-400'"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="text-sm font-bold text-white"
+                                                        x-text="sub.candidateName"></div>
+                                                    <div class="text-[10px] text-slate-500"
+                                                        x-text="sub.projectTitle + ' • Day ' + sub.day"></div>
+                                                </div>
+                                            </div>
+                                            <div class="text-right">
+                                                <div class="text-[10px] font-black uppercase text-blue-400"
+                                                    x-text="sub.status"></div>
+                                                <div class="text-[9px] text-slate-600"
+                                                    x-text="new Date(sub.submittedAt).toLocaleTimeString()"></div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                    <template x-if="allSubmissions.length === 0">
+                                        <div class="text-center py-10 text-slate-600 italic text-xs">No recent
+                                            submissions to display.</div>
+                                    </template>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quick Actions -->
+                        <div class="space-y-4">
+                            <h3
+                                class="text-xs font-black text-slate-500 uppercase tracking-widest flex items-center gap-2 ml-1">
+                                <i class="fas fa-bolt text-amber-500"></i> Fast Track Actions
+                            </h3>
+                            <div class="bg-slate-900 border border-slate-800 p-6 rounded-3xl shadow-2xl space-y-3">
+                                <button @click="loadAllSubmissions(); adminTab='submissions'; adminSubFilter='pending'"
+                                    class="w-full bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-600/30 p-4 rounded-2xl text-xs font-bold transition-all flex items-center justify-between">
+                                    Grade Pending Submissions <i class="fas fa-chevron-right text-[10px]"></i>
+                                </button>
+                                <button @click="adminTab='analytics'"
+                                    class="w-full bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 border border-indigo-600/30 p-4 rounded-2xl text-xs font-bold transition-all flex items-center justify-between">
+                                    Generate Batch Reports <i class="fas fa-chevron-right text-[10px]"></i>
+                                </button>
+                                <button @click="alert('Weekly automation is active.')"
+                                    class="w-full bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 border border-emerald-600/30 p-4 rounded-2xl text-xs font-bold transition-all flex items-center justify-between">
+                                    Weekly Review Status <i class="fas fa-check-circle text-[10px]"></i>
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
-                <div x-show="allSubmissions.length === 0 && !gradingSubmission"
-                    class="text-center py-20 text-slate-600">
-                    <i class="fas fa-clipboard-list text-5xl mb-4"></i>
-                    <p class="text-lg font-bold">No submissions found</p>
-                    <p class="text-xs text-slate-700 mt-2">Candidates haven't submitted any assignments yet.</p>
-                </div>
+                <!-- Tab: Submissions Review Hub -->
+                <div x-show="adminTab === 'submissions'" x-transition>
+                    <div x-show="!gradingSubmission" class="space-y-8">
+                        <div class="flex justify-between items-end">
+                            <div>
+                                <h2 class="text-3xl font-black text-white tracking-tighter">Review <span
+                                        class="text-emerald-500">Submissions</span></h2>
+                                <p class="text-xs text-slate-500 mt-1">Industrial-grade code evaluation & feedback
+                                    system.</p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <!-- Enhanced Search -->
+                                <div class="relative">
+                                    <i
+                                        class="fas fa-search absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 text-xs"></i>
+                                    <input type="text" x-model="adminSearch" placeholder="Search candidate..."
+                                        class="bg-slate-900 border border-slate-800 text-slate-300 text-xs rounded-xl pl-10 pr-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500 w-64 transition-all">
+                                </div>
+                                <select x-model="adminDayFilter" @change="loadAllSubmissions()"
+                                    class="bg-slate-900 border border-slate-800 text-slate-300 text-xs rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="">All Days</option>
+                                    <option value="1">Day 1</option>
+                                    <option value="2">Day 2</option>
+                                    <option value="3">Day 3</option>
+                                    <option value="4">Day 4</option>
+                                    <option value="5">Day 5</option>
+                                </select>
+                                <select x-model="adminSubFilter" @change="loadAllSubmissions()"
+                                    class="bg-slate-900 border border-slate-800 text-slate-300 text-xs rounded-xl px-4 py-2.5 outline-none focus:ring-2 focus:ring-blue-500">
+                                    <option value="all">All Status</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="graded">Graded</option>
+                                </select>
+                                <button @click="loadAllSubmissions()"
+                                    class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3.5 py-2.5 rounded-xl text-xs border border-slate-700 transition-all">
+                                    <i class="fas fa-sync-alt"></i>
+                                </button>
+                            </div>
+                        </div>
 
-                <!-- Submissions Table -->
-                <div x-show="allSubmissions.length > 0 && !gradingSubmission"
-                    class="bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden shadow-2xl">
-                    <table class="w-full text-left">
-                        <thead>
-                            <tr class="bg-slate-800/50">
-                                <th class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase">Candidate</th>
-                                <th class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase">Project</th>
-                                <th class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase text-center">Day
-                                </th>
-                                <th class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase text-center">Tests
-                                </th>
-                                <th class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase text-center">Auto %
-                                </th>
-                                <th class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase text-center">Final
-                                </th>
-                                <th class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase text-center">Status
-                                </th>
-                                <th class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase text-right">Action
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-for="sub in allSubmissions" :key="sub.id">
-                                <tr class="border-t border-slate-800/50 hover:bg-slate-800/30 transition-colors">
-                                    <td class="px-5 py-4">
-                                        <div class="text-sm font-bold text-white" x-text="sub.candidateName"></div>
-                                        <div class="text-[10px] text-slate-500" x-text="sub.email"></div>
-                                    </td>
-                                    <td class="px-5 py-4">
-                                        <div class="text-xs font-bold text-slate-300" x-text="sub.projectTitle"></div>
-                                        <div class="text-[10px] text-slate-500" x-text="sub.topicName"></div>
-                                    </td>
-                                    <td class="px-5 py-4 text-center text-sm font-bold text-blue-400" x-text="sub.day">
-                                    </td>
-                                    <td class="px-5 py-4 text-center text-sm text-slate-300"
-                                        x-text="sub.testsPassed + '/' + sub.testsTotal"></td>
-                                    <td class="px-5 py-4 text-center text-sm font-bold text-blue-400"
-                                        x-text="sub.autoScore + '%'"></td>
-                                    <td class="px-5 py-4 text-center text-sm font-black"
-                                        :class="sub.grade ? 'text-emerald-400' : 'text-slate-600'"
-                                        x-text="sub.grade ? sub.grade.compositeScore + '%' : '—'"></td>
-                                    <td class="px-5 py-4 text-center">
-                                        <span class="text-[10px] font-black uppercase px-3 py-1 rounded-full"
-                                            :class="sub.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'"
-                                            x-text="sub.status"></span>
-                                    </td>
-                                    <td class="px-5 py-4 text-right">
-                                        <button @click="openGrading(sub)"
-                                            class="text-[10px] font-bold uppercase tracking-widest px-4 py-2 rounded-lg border transition-all"
-                                            :class="sub.status === 'graded' ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700' : 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500'">
-                                            <i class="fas" :class="sub.status === 'graded' ? 'fa-eye' : 'fa-pen'"></i>
-                                            <span x-text="sub.status === 'graded' ? 'Review' : 'Grade'"></span>
-                                        </button>
-                                    </td>
-                                </tr>
-                            </template>
-                        </tbody>
-                    </table>
-                </div>
+                        <div x-show="allSubmissions.filter(s => !adminSearch || s.candidateName.toLowerCase().includes(adminSearch.toLowerCase()) || s.email.toLowerCase().includes(adminSearch.toLowerCase())).length === 0"
+                            class="text-center py-20 text-slate-600 bg-slate-900 border border-slate-800 rounded-3xl">
+                            <i class="fas fa-clipboard-list text-5xl mb-4"></i>
+                            <p class="text-lg font-bold">No matching submissions</p>
+                            <p class="text-xs text-slate-700 mt-2">Try adjusting your filters or search query.</p>
+                        </div>
 
-                <!-- Grading Panel -->
-                <div x-show="gradingSubmission" class="space-y-6">
-                    <button @click="gradingSubmission = null; gradingDetail = null"
-                        class="text-slate-500 hover:text-white mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest">
-                        <i class="fas fa-arrow-left"></i> Back to Submissions
-                    </button>
+                        <div x-show="allSubmissions.length > 0"
+                            class="bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden shadow-2xl">
+                            <table class="w-full text-left">
+                                <thead>
+                                    <tr class="bg-slate-800/50">
+                                        <th class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase">Candidate
+                                        </th>
+                                        <th class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase">Project
+                                        </th>
+                                        <th
+                                            class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase text-center">
+                                            Day</th>
+                                        <th
+                                            class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase text-center">
+                                            Auto %</th>
+                                        <th
+                                            class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase text-center">
+                                            Violations</th>
+                                        <th
+                                            class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase text-center">
+                                            Final</th>
+                                        <th
+                                            class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase text-center">
+                                            Status</th>
+                                        <th
+                                            class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase text-right">
+                                            Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <template
+                                        x-for="sub in allSubmissions.filter(s => !adminSearch || s.candidateName.toLowerCase().includes(adminSearch.toLowerCase()) || s.email.toLowerCase().includes(adminSearch.toLowerCase()))"
+                                        :key="sub.id">
+                                        <tr
+                                            class="border-t border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+                                            <td class="px-5 py-4">
+                                                <div class="text-sm font-bold text-white" x-text="sub.candidateName">
+                                                </div>
+                                                <div class="text-[10px] text-slate-500" x-text="sub.email"></div>
+                                            </td>
+                                            <td class="px-5 py-4">
+                                                <div class="text-xs font-bold text-slate-300" x-text="sub.projectTitle">
+                                                </div>
+                                                <div class="text-[10px] text-slate-500" x-text="sub.topicName"></div>
+                                            </td>
+                                            <td class="px-5 py-4 text-center text-sm font-bold text-blue-400"
+                                                x-text="sub.day"></td>
+                                            <td class="px-5 py-4 text-center text-sm font-bold text-blue-400"
+                                                x-text="sub.autoScore + '%'"></td>
+                                            <td class="px-5 py-4 text-center">
+                                                <span
+                                                    :class="sub.violationCount > 0 ? 'text-red-500 animate-pulse font-bold' : 'text-slate-600'"
+                                                    class="text-xs" x-text="sub.violationCount || 0"></span>
+                                            </td>
+                                            <td class="px-5 py-4 text-center text-sm font-black"
+                                                :class="sub.grade ? 'text-emerald-400' : 'text-slate-600'"
+                                                x-text="sub.grade ? sub.grade.compositeScore + '%' : '—'"></td>
+                                            <td class="px-5 py-4 text-center">
+                                                <span class="text-[8px] font-black uppercase px-2 py-1 rounded-md"
+                                                    :class="sub.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'"
+                                                    x-text="sub.status"></span>
+                                            </td>
+                                            <td class="px-5 py-4 text-right">
+                                                <button @click="openGrading(sub)"
+                                                    class="text-[9px] font-black uppercase tracking-widest px-4 py-2 rounded-xl border transition-all"
+                                                    :class="sub.status === 'graded' ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700' : 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-500 shadow-lg shadow-emerald-900/20'">
+                                                    <i class="fas"
+                                                        :class="sub.status === 'graded' ? 'fa-eye' : 'fa-pen-nib'"></i>
+                                                    <span
+                                                        x-text="sub.status === 'graded' ? 'Review' : 'Grade Now'"></span>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
 
-                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                        <!-- Left: Candidate Info + Code -->
-                        <div class="space-y-4">
-                            <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
-                                <div class="flex items-center justify-between mb-4">
-                                    <div>
-                                        <div class="text-lg font-bold text-white"
-                                            x-text="gradingSubmission.candidateName"></div>
-                                        <div class="text-[10px] text-slate-500" x-text="gradingSubmission.email"></div>
+                    <!-- Grading View (Integrated) -->
+                    <div x-show="gradingSubmission" x-transition class="space-y-6">
+                        <div class="flex items-center gap-4">
+                            <button @click="gradingSubmission = null; gradingDetail = null"
+                                class="w-10 h-10 bg-slate-900 border border-slate-800 text-slate-500 hover:text-white rounded-xl flex items-center justify-center transition-all">
+                                <i class="fas fa-arrow-left"></i>
+                            </button>
+                            <div>
+                                <h3 class="text-xl font-black text-white tracking-tight">Grading: <span
+                                        class="text-blue-500" x-text="gradingSubmission?.candidateName"></span></h3>
+                                <p class="text-[10px] text-slate-500 uppercase tracking-widest font-bold"
+                                    x-text="gradingSubmission?.projectTitle"></p>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                            <!-- Code Viewer -->
+                            <div
+                                class="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden shadow-2xl h-[700px] flex flex-col">
+                                <div
+                                    class="px-6 py-4 bg-slate-800/50 flex justify-between items-center border-b border-slate-800">
+                                    <div
+                                        class="text-[10px] font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">
+                                        <i class="fas fa-terminal text-blue-400"></i> Source Code Artifacts
                                     </div>
-                                    <div class="text-right">
-                                        <div class="text-[10px] font-bold text-blue-400 uppercase">Day <span
-                                                x-text="gradingSubmission.day"></span></div>
-                                        <div class="text-xs text-slate-400" x-text="gradingSubmission.projectTitle">
-                                        </div>
+                                    <div class="flex gap-2">
+                                        <div class="w-3 h-3 rounded-full bg-red-500/50"></div>
+                                        <div class="w-3 h-3 rounded-full bg-amber-500/50"></div>
+                                        <div class="w-3 h-3 rounded-full bg-emerald-500/50"></div>
                                     </div>
                                 </div>
-                                <div class="flex gap-4">
-                                    <div class="bg-slate-800 px-4 py-2 rounded-xl text-center">
-                                        <div class="text-[9px] text-slate-500 uppercase font-bold">Tests</div>
-                                        <div class="text-sm font-black text-slate-200"
-                                            x-text="gradingSubmission.testsPassed + '/' + gradingSubmission.testsTotal">
+                                <div class="flex-1 overflow-hidden flex flex-col">
+                                    <template x-if="gradingDetail">
+                                        <div class="flex-1 flex flex-col overflow-hidden">
+                                            <template x-for="file in gradingDetail.code" :key="file.name">
+                                                <div class="flex-1 flex flex-col overflow-hidden">
+                                                    <div
+                                                        class="px-6 py-2 bg-slate-950/80 text-[10px] font-bold text-blue-400 flex items-center gap-2 border-b border-slate-800">
+                                                        <i class="fas fa-file-code"></i> <span
+                                                            x-text="file.name"></span>
+                                                    </div>
+                                                    <pre class="flex-1 p-6 text-xs code-font text-slate-300 overflow-auto bg-slate-950 custom-scrollbar leading-relaxed"
+                                                        x-text="file.content"></pre>
+                                                </div>
+                                            </template>
                                         </div>
-                                    </div>
-                                    <div class="bg-slate-800 px-4 py-2 rounded-xl text-center">
-                                        <div class="text-[9px] text-slate-500 uppercase font-bold">Auto Score</div>
-                                        <div class="text-sm font-black text-blue-400"
-                                            x-text="gradingSubmission.autoScore + '%'"></div>
-                                    </div>
-                                    <div class="bg-slate-800 px-4 py-2 rounded-xl text-center">
-                                        <div class="text-[9px] text-slate-500 uppercase font-bold">Submitted</div>
-                                        <div class="text-sm font-bold text-slate-300"
-                                            x-text="new Date(gradingSubmission.submittedAt).toLocaleDateString()"></div>
+                                    </template>
+                                    <div x-show="!gradingDetail"
+                                        class="flex-1 flex items-center justify-center text-slate-600 bg-slate-950">
+                                        <div class="text-center">
+                                            <i class="fas fa-spinner fa-spin text-3xl mb-4 text-blue-500/50"></i>
+                                            <p class="text-xs font-bold uppercase tracking-widest">Hydrating Source...
+                                            </p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Code Viewer -->
-                            <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-                                <div
-                                    class="px-4 py-2 bg-slate-800/50 text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2">
-                                    <i class="fas fa-code text-blue-400"></i> Submitted Code
-                                </div>
-                                <template x-if="gradingDetail">
-                                    <div>
-                                        <template x-for="file in gradingDetail.code" :key="file.name">
-                                            <div class="border-t border-slate-800">
-                                                <div
-                                                    class="px-4 py-1.5 bg-slate-950/50 text-[10px] font-bold text-blue-400 flex items-center gap-2">
-                                                    <i class="fas fa-file-code"></i> <span x-text="file.name"></span>
+                            <!-- Grading Controls -->
+                            <div class="space-y-6 flex flex-col">
+                                <div class="bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl flex-1">
+                                    <h4
+                                        class="text-xs font-black text-emerald-400 uppercase tracking-widest mb-8 flex items-center gap-2">
+                                        <i class="fas fa-tasks"></i> Rubric Assessment
+                                    </h4>
+
+                                    <div class="grid grid-cols-1 gap-8">
+                                        <template x-for="metric in ['correctness', 'codeQuality', 'logic', 'style']">
+                                            <div class="bg-slate-950/50 p-6 rounded-2xl border border-slate-800/50">
+                                                <div class="flex justify-between items-center mb-4">
+                                                    <label
+                                                        class="text-[10px] font-black text-slate-400 uppercase tracking-widest"
+                                                        x-text="metric.replace(/([A-Z])/g, ' $1')"></label>
+                                                    <div
+                                                        class="flex items-center gap-2 bg-slate-900 px-3 py-1 rounded-lg border border-slate-800">
+                                                        <span class="text-lg font-black text-blue-500"
+                                                            x-text="gradeScores[metric]"></span>
+                                                        <span class="text-[10px] text-slate-600 uppercase">/ 10</span>
+                                                    </div>
                                                 </div>
-                                                <pre class="p-4 text-xs code-font text-slate-300 overflow-x-auto max-h-96 overflow-y-auto custom-scrollbar bg-slate-950"
-                                                    x-text="file.content"></pre>
+                                                <input type="range" min="0" max="10" step="1"
+                                                    x-model.number="gradeScores[metric]"
+                                                    class="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-blue-600">
                                             </div>
                                         </template>
                                     </div>
-                                </template>
-                                <div x-show="!gradingDetail" class="p-8 text-center text-slate-600 text-xs">
-                                    <i class="fas fa-spinner fa-spin text-lg mb-2"></i><br>Loading code...
-                                </div>
-                            </div>
-                        </div>
 
-                        <!-- Right: Grading Rubric -->
-                        <div class="space-y-4">
-                            <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
-                                <h4
-                                    class="text-xs font-black text-emerald-400 uppercase tracking-widest mb-6 flex items-center gap-2">
-                                    <i class="fas fa-clipboard-check"></i> Grading Rubric
-                                </h4>
-
-                                <div class="space-y-5">
-                                    <div>
-                                        <div class="flex justify-between items-center mb-2">
-                                            <label class="text-xs font-bold text-slate-300">Correctness</label>
-                                            <span class="text-sm font-black text-blue-400"
-                                                x-text="gradeScores.correctness + '/10'"></span>
-                                        </div>
-                                        <input type="range" min="0" max="10" step="1"
-                                            x-model.number="gradeScores.correctness" class="w-full accent-blue-500">
-                                        <p class="text-[10px] text-slate-600 mt-1">Does the code produce the right
-                                            output?</p>
-                                    </div>
-                                    <div>
-                                        <div class="flex justify-between items-center mb-2">
-                                            <label class="text-xs font-bold text-slate-300">Code Quality</label>
-                                            <span class="text-sm font-black text-blue-400"
-                                                x-text="gradeScores.codeQuality + '/10'"></span>
-                                        </div>
-                                        <input type="range" min="0" max="10" step="1"
-                                            x-model.number="gradeScores.codeQuality" class="w-full accent-blue-500">
-                                        <p class="text-[10px] text-slate-600 mt-1">Naming, structure, readability.</p>
-                                    </div>
-                                    <div>
-                                        <div class="flex justify-between items-center mb-2">
-                                            <label class="text-xs font-bold text-slate-300">Logic & Approach</label>
-                                            <span class="text-sm font-black text-blue-400"
-                                                x-text="gradeScores.logic + '/10'"></span>
-                                        </div>
-                                        <input type="range" min="0" max="10" step="1" x-model.number="gradeScores.logic"
-                                            class="w-full accent-blue-500">
-                                        <p class="text-[10px] text-slate-600 mt-1">Algorithm efficiency, approach
-                                            quality.</p>
-                                    </div>
-                                    <div>
-                                        <div class="flex justify-between items-center mb-2">
-                                            <label class="text-xs font-bold text-slate-300">Style & Best
-                                                Practices</label>
-                                            <span class="text-sm font-black text-blue-400"
-                                                x-text="gradeScores.style + '/10'"></span>
-                                        </div>
-                                        <input type="range" min="0" max="10" step="1" x-model.number="gradeScores.style"
-                                            class="w-full accent-blue-500">
-                                        <p class="text-[10px] text-slate-600 mt-1">Formatting, comments, best practices.
-                                        </p>
+                                    <!-- Comment Area -->
+                                    <div class="mt-8">
+                                        <h4
+                                            class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                            <i class="fas fa-comment-dots text-indigo-400"></i> Trainer Feedback &
+                                            Insights
+                                        </h4>
+                                        <textarea x-model="gradeComments" rows="4"
+                                            placeholder="Provide actionable feedback for the candidate..."
+                                            class="w-full bg-slate-950 border border-slate-800 rounded-2xl p-6 text-sm text-slate-300 outline-none focus:ring-2 focus:ring-emerald-500 resize-none code-font placeholder:text-slate-700"></textarea>
                                     </div>
                                 </div>
 
-                                <!-- Score Preview -->
-                                <div class="mt-6 bg-slate-950 rounded-xl p-4 border border-slate-800">
-                                    <div class="grid grid-cols-3 gap-4 text-center">
-                                        <div>
-                                            <div class="text-[9px] text-slate-600 uppercase font-bold">Auto (20%)</div>
-                                            <div class="text-lg font-black text-blue-400"
-                                                x-text="gradingSubmission ? gradingSubmission.autoScore : 0"></div>
-                                        </div>
-                                        <div>
-                                            <div class="text-[9px] text-slate-600 uppercase font-bold">Manual (80%)
-                                            </div>
-                                            <div class="text-lg font-black text-emerald-400"
-                                                x-text="Math.round(((gradeScores.correctness + gradeScores.codeQuality + gradeScores.logic + gradeScores.style) / 4) * 10)">
+                                <!-- Summary & Submit -->
+                                <div
+                                    class="bg-slate-900 border border-slate-800 p-8 rounded-3xl shadow-2xl flex items-center justify-between gap-10">
+                                    <div class="flex items-center gap-8">
+                                        <div class="text-center">
+                                            <div
+                                                class="text-[9px] text-slate-600 uppercase font-black tracking-widest mb-1">
+                                                Composite</div>
+                                            <div class="text-3xl font-black text-white"
+                                                x-text="Math.round((gradingSubmission?.autoScore || 0) * 0.2 + ((gradeScores.correctness + gradeScores.codeQuality + gradeScores.logic + gradeScores.style) / 4) * 10 * 0.8) + '%'">
                                             </div>
                                         </div>
+                                        <div class="w-px h-10 bg-slate-800"></div>
                                         <div>
-                                            <div class="text-[9px] text-slate-600 uppercase font-bold">Composite</div>
-                                            <div class="text-lg font-black text-white"
-                                                x-text="Math.round((gradingSubmission ? gradingSubmission.autoScore : 0) * 0.2 + ((gradeScores.correctness + gradeScores.codeQuality + gradeScores.logic + gradeScores.style) / 4) * 10 * 0.8) + '%'">
+                                            <div class="text-[9px] text-slate-600 uppercase font-bold">Auto (20%): <span
+                                                    class="text-blue-400"
+                                                    x-text="(gradingSubmission?.autoScore || 0) + '%'"></span></div>
+                                            <div class="text-[9px] text-slate-600 uppercase font-bold">Manual (80%):
+                                                <span class="text-emerald-400"
+                                                    x-text="Math.round(((gradeScores.correctness + gradeScores.codeQuality + gradeScores.logic + gradeScores.style) / 4) * 10) + '%'"></span>
                                             </div>
                                         </div>
                                     </div>
+                                    <button @click="submitGrade()" :disabled="isGrading"
+                                        class="px-10 py-5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 disabled:opacity-50 text-white rounded-2xl font-black text-sm transition-all shadow-xl shadow-emerald-900/40 flex items-center justify-center gap-3">
+                                        <i class="fas" :class="isGrading ? 'fa-sync fa-spin' : 'fa-check-circle'"></i>
+                                        <span x-text="isGrading ? 'Finalizing...' : 'Submit Grade'"></span>
+                                    </button>
                                 </div>
                             </div>
-
-                            <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
-                                <h4
-                                    class="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
-                                    <i class="fas fa-comment-alt"></i> Trainer Comments
-                                </h4>
-                                <textarea x-model="gradeComments" rows="4"
-                                    placeholder="Write feedback for the candidate..."
-                                    class="w-full bg-slate-950 border border-slate-800 rounded-xl p-4 text-sm text-slate-300 outline-none focus:ring-2 focus:ring-emerald-500 resize-none code-font"></textarea>
-                            </div>
-
-                            <button @click="submitGrade()" :disabled="isGrading"
-                                class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white py-4 rounded-2xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/30 flex items-center justify-center gap-2">
-                                <i class="fas" :class="isGrading ? 'fa-circle-notch fa-spin' : 'fa-check-circle'"></i>
-                                <span x-text="isGrading ? 'Submitting Grade...' : 'Submit Grade'"></span>
-                            </button>
                         </div>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- Admin Hub (existing) -->
-        <div x-show="currentView === 'admin'" class="h-full overflow-y-auto p-10 bg-slate-950">
-            <div class="max-w-6xl mx-auto">
-                <div class="flex justify-between items-end mb-10">
+                <!-- Tab: Analytics Hub (Legacy Data) -->
+                <div x-show="adminTab === 'analytics'" x-transition class="space-y-8">
                     <div>
                         <h2 class="text-3xl font-black text-white tracking-tighter">Candidate <span
-                                class="text-blue-500">Analytics</span></h2>
-                        <p class="text-xs text-slate-500 mt-1">Real-time performance tracking and reporting system
+                                class="text-indigo-500">Analytics</span></h2>
+                        <p class="text-xs text-slate-500 mt-1">Holistic performance tracking and behavioral insights.
                         </p>
                     </div>
-                    <button @click="alert('Automatic weekly report generation scheduled every Sunday at 00:00 UTC')"
-                        class="bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-600/30 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center gap-2">
-                        <i class="fas fa-calendar-check"></i> Automate Weekly Reports
-                    </button>
-                </div>
 
-                <div class="bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden shadow-2xl">
-                    <table class="w-full text-left">
-                        <thead>
-                            <tr class="bg-slate-800/50">
-                                <th class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase">Profile</th>
-                                <th class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase text-center">
-                                    Completed</th>
-                                <th class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase">Progress</th>
-                                <th class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase text-center">
-                                    Time</th>
-                                <th class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase text-right">
-                                    Report</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <template x-for="c in candidates" :key="c.code">
-                        <tbody class="group border-t border-slate-800/50">
-                            <tr class="hover:bg-slate-800/30 transition-colors">
-                                <td class="px-6 py-4">
-                                    <div class="text-sm font-bold text-white" x-text="c.name"></div>
-                                    <div class="text-[10px] text-slate-500" x-text="c.email"></div>
-                                </td>
-                                <td class="px-6 py-4 text-center font-bold text-slate-300"
-                                    x-text="c.completed + ' / 40'">
-                                </td>
-                                <td class="px-6 py-4 w-48">
-                                    <div class="flex items-center gap-3">
-                                        <div class="flex-1 h-1.5 bg-slate-800 rounded-full overflow-hidden">
-                                            <div class="bg-blue-500 h-full transition-all"
-                                                :style="'width: ' + c.progress + '%'"></div>
+                    <div class="bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden shadow-2xl">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="bg-slate-800/50">
+                                    <th class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase">Profile</th>
+                                    <th class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase text-center">
+                                        Completed</th>
+                                    <th class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase">Progress</th>
+                                    <th class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase text-center">
+                                        Time</th>
+                                    <th class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase text-right">
+                                        Report</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <template x-for="c in candidates" :key="c.code">
+                            <tbody class="group border-t border-slate-800/50">
+                                <tr class="hover:bg-slate-800/30 transition-colors">
+                                    <td class="px-6 py-4">
+                                        <div class="text-sm font-bold text-white" x-text="c.name"></div>
+                                        <div class="text-[10px] text-slate-500" x-text="c.email"></div>
+                                    </td>
+                                    <td class="px-6 py-4 text-center font-bold text-slate-300"
+                                        x-text="c.completed + ' / 40'"></td>
+                                    <td class="px-6 py-4 w-48">
+                                        <div class="flex items-center gap-3">
+                                            <div class="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
+                                                <div class="bg-indigo-500 h-full transition-all"
+                                                    :style="'width: ' + c.progress + '%'"></div>
+                                            </div>
+                                            <span class="text-[10px] font-bold text-slate-500"
+                                                x-text="c.progress + '%'"></span>
                                         </div>
-                                        <span class="text-[10px] font-bold text-slate-500"
-                                            x-text="c.progress + '%'"></span>
-                                    </div>
-                                </td>
-                                <td class="px-6 py-4 text-center font-bold text-blue-400" x-text="c.hours + 'h'">
-                                </td>
-                                <td class="px-6 py-4 text-right">
-                                    <button @click="c.showDetails = !c.showDetails"
-                                        class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 transition-all text-[10px] font-bold uppercase tracking-widest">
-                                        View Insights
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr x-show="c.showDetails" x-transition class="bg-slate-950/50">
-                                <td colspan="5" class="px-10 py-6">
-                                    <div class="grid grid-cols-2 gap-10">
-                                        <div class="space-y-4">
-                                            <h5 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                                                Strengths & Topics Mastery</h5>
-                                            <div class="flex flex-wrap gap-2">
-                                                <template x-for="st in c.strong" :key="st">
-                                                    <div
-                                                        class="bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 px-3 py-1 rounded-lg text-[10px] font-bold flex items-center gap-2">
-                                                        <i class="fas fa-check-circle"></i> <span x-text="st"></span>
-                                                    </div>
-                                                </template>
+                                    </td>
+                                    <td class="px-6 py-4 text-center font-bold text-blue-400" x-text="c.hours + 'h'">
+                                    </td>
+                                    <td class="px-6 py-4 text-right">
+                                        <button @click="c.showDetails = !c.showDetails"
+                                            class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded-xl border border-slate-700 transition-all text-[10px] font-black uppercase tracking-widest">
+                                            Insights
+                                        </button>
+                                    </td>
+                                </tr>
+                                <tr x-show="c.showDetails" x-transition class="bg-slate-950/50">
+                                    <td colspan="5" class="px-10 py-8">
+                                        <div class="grid grid-cols-2 gap-16">
+                                            <div class="space-y-4">
+                                                <h5
+                                                    class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                                    Strengths & Topics Mastery</h5>
+                                                <div class="flex flex-wrap gap-2">
+                                                    <template x-for="st in c.strong" :key="st">
+                                                        <div
+                                                            class="bg-emerald-500/10 border border-emerald-500/30 text-emerald-500 px-4 py-1.5 rounded-xl text-[10px] font-black flex items-center gap-2">
+                                                            <i class="fas fa-check-circle text-[8px]"></i> <span
+                                                                x-text="st"></span>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </div>
+                                            <div class="space-y-4">
+                                                <h5
+                                                    class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                                                    Growth Recommendations</h5>
+                                                <p class="text-xs text-slate-400 italic leading-relaxed">"Candidate
+                                                    shows strong aptitude in <span class="text-blue-400 font-bold"
+                                                        x-text="c.strong[0]"></span>. Suggested roadmap: Advanced
+                                                    AUTOSAR modules."</p>
+                                                <button
+                                                    class="text-[10px] font-black text-blue-400 hover:text-blue-300 uppercase tracking-widest flex items-center gap-2 mt-4">
+                                                    <i class="fas fa-file-pdf"></i> Generate Evaluation Dossier
+                                                </button>
                                             </div>
                                         </div>
-                                        <div class="space-y-4">
-                                            <h5 class="text-[10px] font-black text-slate-500 uppercase tracking-widest">
-                                                Growth Recommendations</h5>
-                                            <p class="text-xs text-slate-400 italic">"Focus on mastering <span
-                                                    class="text-blue-400 font-bold" x-text="c.weak.join(', ')"></span>
-                                                to improve system-level
-                                                integration skills. Suggest reviewing Project Bucket RTOS-05."</p>
-                                            <button @click="alert('Detailed PDF Report Generated for ' + c.name)"
-                                                class="text-[10px] font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1">
-                                                <i class="fas fa-download"></i> Download Detailed Analysis (PDF)
-                                            </button>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                        </template>
-                        </tbody>
-                    </table>
+                                    </td>
+                                </tr>
+                            </tbody>
+                            </template>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
+
     </div>
     </div>
 
@@ -1661,6 +1808,9 @@
                 isSubmitting: false,
                 mySubmissions: [],
                 allSubmissions: [],
+                // Admin Dashboard State
+                adminTab: 'overview',
+                adminSearch: '',
                 adminSubFilter: 'all',
                 adminDayFilter: '',
                 gradingSubmission: null,
@@ -1869,6 +2019,7 @@
                         this.user.name = 'Administrator';
                         this.user.role = 'admin';
                         this.currentView = 'admin_dashboard';
+                        this.adminTab = 'overview';
                         this.isLoggedIn = true;
                     } else {
                         alert("Invalid Admin Credentials.");

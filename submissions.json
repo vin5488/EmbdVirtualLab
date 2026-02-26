@@ -34,5 +34,153 @@
     "status": "pending",
     "submittedAt": "2026-02-26T06:01:51.195Z",
     "grade": null
+  },
+  {
+    "id": "SUB-1772089747959-gwqo",
+    "candidateName": "v",
+    "email": "v@gmail.com",
+    "projectId": "C_INT-02",
+    "projectTitle": "Bit Counter",
+    "topicId": "C_INT",
+    "topicName": "Intermediate C",
+    "day": 1,
+    "code": [
+      {
+        "name": "main.c",
+        "content": "#include <stdio.h>\n\nint countSetBits(unsigned int num)\n{\n    int count = 0;\n\n    while (num)\n    {\n        count += (num & 1);\n        num >>= 1;\n    }\n\n    return count;\n}\n\nint main()\n{\n    int n;\n    scanf(\"%d\", &n);\n\n    printf(\"%d\", countSetBits((unsigned int)n));\n\n    return 0;\n}"
+      }
+    ],
+    "testResults": [
+      {
+        "name": "Zero",
+        "passed": true
+      },
+      {
+        "name": "One",
+        "passed": true
+      },
+      {
+        "name": "All Ones (15)",
+        "passed": true
+      },
+      {
+        "name": "Random",
+        "passed": true
+      }
+    ],
+    "testsPassed": 4,
+    "testsTotal": 4,
+    "autoScore": 100,
+    "violationCount": 21,
+    "violationLog": [
+      {
+        "time": "11:31:58 AM",
+        "reason": "Tab switch / window unfocused",
+        "count": 1
+      },
+      {
+        "time": "11:34:13 AM",
+        "reason": "Tab switch / window unfocused",
+        "count": 2
+      },
+      {
+        "time": "11:39:36 AM",
+        "reason": "Tab switch / window unfocused",
+        "count": 3
+      },
+      {
+        "time": "11:44:02 AM",
+        "reason": "Tab switch / window unfocused",
+        "count": 4
+      },
+      {
+        "time": "11:51:17 AM",
+        "reason": "Tab switch / window unfocused",
+        "count": 5
+      },
+      {
+        "time": "12:04:48 PM",
+        "reason": "Tab switch / window unfocused",
+        "count": 6
+      },
+      {
+        "time": "12:10:59 PM",
+        "reason": "Tab switch / window unfocused",
+        "count": 7
+      },
+      {
+        "time": "12:13:45 PM",
+        "reason": "Tab switch / window unfocused",
+        "count": 8
+      },
+      {
+        "time": "12:14:38 PM",
+        "reason": "Tab switch / window unfocused",
+        "count": 9
+      },
+      {
+        "time": "12:15:07 PM",
+        "reason": "Tab switch / window unfocused",
+        "count": 10
+      },
+      {
+        "time": "12:15:09 PM",
+        "reason": "Tab switch / window unfocused",
+        "count": 11
+      },
+      {
+        "time": "12:18:28 PM",
+        "reason": "Tab switch / window unfocused",
+        "count": 12
+      },
+      {
+        "time": "12:21:25 PM",
+        "reason": "Tab switch / window unfocused",
+        "count": 13
+      },
+      {
+        "time": "12:22:14 PM",
+        "reason": "Tab switch / window unfocused",
+        "count": 14
+      },
+      {
+        "time": "12:22:30 PM",
+        "reason": "Tab switch / window unfocused",
+        "count": 15
+      },
+      {
+        "time": "12:23:04 PM",
+        "reason": "Tab switch / window unfocused",
+        "count": 16
+      },
+      {
+        "time": "12:23:30 PM",
+        "reason": "Right-click attempt blocked",
+        "count": 17
+      },
+      {
+        "time": "12:23:40 PM",
+        "reason": "Tab switch / window unfocused",
+        "count": 18
+      },
+      {
+        "time": "12:24:22 PM",
+        "reason": "Tab switch / window unfocused",
+        "count": 19
+      },
+      {
+        "time": "12:37:58 PM",
+        "reason": "Tab switch / window unfocused",
+        "count": 20
+      },
+      {
+        "time": "12:38:21 PM",
+        "reason": "Tab switch / window unfocused",
+        "count": 21
+      }
+    ],
+    "status": "pending",
+    "submittedAt": "2026-02-26T07:09:07.960Z",
+    "grade": null
   }
 ]
