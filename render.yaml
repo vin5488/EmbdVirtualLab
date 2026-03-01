@@ -14,3 +14,50 @@ services:
         value: 2
       - key: MAX_COMPILES
         value: 8
+      - key: DB_PATH
+        value: /app/data/virtuallab.db
+
+      # ── Security (set in Render dashboard, not here) ──
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_PASS
+        sync: false          # Set manually in Render dashboard
+      - key: ADMIN_EMAILS
+        sync: false          # Comma-separated admin emails
+      - key: DEBUG_AUTH
+        value: false
+
+      # ── CORS (set to your deployed domain) ──
+      - key: CORS_ORIGIN
+        sync: false          # e.g. https://yourplatform.onrender.com
+
+      # ── Whitelist ──
+      - key: ENABLE_WHITELIST
+        value: true
+
+      # ── SMTP (set in Render dashboard) ──
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: 587
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASS
+        sync: false
+      - key: SMTP_FROM
+        sync: false
+
+      # ── Branding (optional) ──
+      - key: PLATFORM_TITLE
+        value: SkillLyncVirtualLab
+      - key: PLATFORM_SUBTITLE
+        value: Industrial Grade Embedded & ECU Project Platform
+
+      # ── Topic filter (leave blank to show all) ──
+      - key: TOPIC_FILTER
+        value: ""
+
+    disk:
+      name: db-storage
+      mountPath: /app/data
+      sizeGB: 1

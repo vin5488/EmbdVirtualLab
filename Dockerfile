@@ -1,42 +1,49 @@
-# Use a Node.js base image with Debian Bullseye
 FROM node:18-bullseye-slim
 
-# Install GCC, G++, and other necessary build tools including ARM cross-compiler
+# Install GCC, G++, ARM cross-compiler tools, QEMU Cortex-M emulator
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
     g++ \
     make \
+    git \
     python3 \
     gcc-arm-none-eabi \
     binutils-arm-none-eabi \
     libnewlib-arm-none-eabi \
+    qemu-system-arm \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user for security
+# Download FreeRTOS-Kernel (POSIX port) for FreeRTOS simulation challenges
+RUN git clone --depth 1 --branch V11.1.0 \
+    https://github.com/FreeRTOS/FreeRTOS-Kernel.git /opt/freertos-kernel \
+    && rm -rf /opt/freertos-kernel/.git
+
+
+# Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser -m appuser
 
-# Set the working directory
 WORKDIR /app
 
-# Copy the server and frontend files
+# Install dependencies first (layer cache optimization)
+COPY package*.json ./
+RUN npm install --omit=dev
+
+# Copy app files
 COPY server.js .
 COPY index.html .
+COPY platform/ ./platform/
 
-# Create submissions directory writable by appuser
-RUN touch submissions.json && chown appuser:appuser submissions.json
 
-# Switch to non-root user
+# Create data directory for SQLite database (owned by appuser)
+RUN mkdir -p /app/data && chown -R appuser:appuser /app/data
+
 USER appuser
 
-# Expose the application port
 EXPOSE 8080
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
     CMD node -e "const http = require('http'); http.get('http://localhost:8080/health', (r) => { process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1));"
 
-# Set production environment
 ENV NODE_ENV=production
 
-# Command to run the application
 CMD ["node", "server.js"]

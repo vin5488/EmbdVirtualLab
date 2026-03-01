@@ -133,11 +133,11 @@
                         Admin Access</h2>
                     <div class="space-y-4">
                         <div>
-                            <label
-                                class="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Username</label>
-                            <input type="text" x-model="adminCreds.id"
+                            <label class="block text-[10px] font-bold text-slate-500 uppercase mb-1.5 ml-1">Admin
+                                Email</label>
+                            <input type="email" x-model="adminCreds.email"
                                 class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 focus:ring-2 focus:ring-blue-500 outline-none transition-all"
-                                placeholder="admin">
+                                placeholder="admin@example.com">
                         </div>
                         <div>
                             <label
@@ -193,8 +193,10 @@
                             class="text-blue-400" x-text="user.email"></span></p>
 
                     <div class="mb-8 p-4 bg-slate-950 border border-slate-800 rounded-2xl">
-                        <div class="text-[10px] font-bold text-slate-600 uppercase mb-2">Security Code (Simulated)</div>
+                        <div class="text-[10px] font-bold text-slate-600 uppercase mb-2">Access Code</div>
                         <div class="text-3xl font-black tracking-widest text-emerald-400" x-text="generatedCode"></div>
+                        <div x-show="generatedCode === '********'" class="text-[10px] text-slate-500 mt-2 italic">Sent
+                            to your mailbox</div>
                     </div>
 
                     <div class="space-y-3">
@@ -230,8 +232,8 @@
                                 class="fas fa-key text-[8px]"></i> <span x-text="generatedCode"></span></span>
                     </div>
                 </div>
-                <!-- Violation Counter Badge -->
-                <div x-show="violationCount > 0" x-transition
+                <!-- Violation Counter Badge (candidates only) -->
+                <div x-show="violationCount > 0 && user.role !== 'admin'" x-transition
                     class="ml-4 flex items-center gap-2 bg-red-600/20 border border-red-500/40 px-3 py-1.5 rounded-xl animate-pulse cursor-pointer"
                     @click="alert('⚠️ Violations Log:\n' + violationLog.map(v => v.time + ' — ' + v.reason).join('\n'))">
                     <i class="fas fa-exclamation-triangle text-red-400 text-xs"></i>
@@ -408,7 +410,9 @@
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-                    <template x-for="topic in topics" :key="topic.id">
+                    <template
+                        x-for="topic in (topicFilter.length ? topics.filter(t => topicFilter.includes(t.id)) : topics)"
+                        :key="topic.id">
                         <div @click="selectTopic(topic)"
                             class="bg-slate-900 border border-slate-800 p-8 rounded-3xl hover:border-blue-500 transition-all group cursor-pointer shadow-xl">
                             <div class="flex justify-between items-start mb-6">
@@ -955,82 +959,31 @@
                     <table class="w-full text-left">
                         <thead>
                             <tr class="bg-slate-800/50">
-                                <th class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase">Day</th>
-                                <th class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase">Project</th>
-                                <th class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase text-center">Tests
-                                </th>
-                                <th class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase text-center">Auto
-                                </th>
+                                <th class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase">Problem Statement
+                                    Name</th>
+                                <th class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase w-1/2">Trainer
+                                    Feedback</th>
                                 <th class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase text-center">
-                                    Trainer</th>
-                                <th class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase text-center">Final
-                                </th>
-                                <th class="px-6 py-4 text-[10px] font-black text-slate-500 uppercase text-center">Status
-                                </th>
+                                    Grading</th>
                             </tr>
                         </thead>
                         <tbody>
                             <template x-for="sub in mySubmissions" :key="sub.id">
-                        <tbody class="border-t border-slate-800/50">
-                            <tr class="hover:bg-slate-800/30 transition-colors cursor-pointer"
-                                @click="sub._expanded = !sub._expanded">
-                                <td class="px-6 py-4 text-sm font-bold text-blue-400" x-text="'Day ' + sub.day"></td>
-                                <td class="px-6 py-4">
-                                    <div class="text-sm font-bold text-white" x-text="sub.projectTitle"></div>
-                                    <div class="text-[10px] text-slate-500" x-text="sub.projectId"></div>
-                                </td>
-                                <td class="px-6 py-4 text-center text-sm font-bold text-slate-300"
-                                    x-text="sub.testsPassed + '/' + sub.testsTotal"></td>
-                                <td class="px-6 py-4 text-center text-sm font-bold text-blue-400"
-                                    x-text="sub.autoScore + '%'"></td>
-                                <td class="px-6 py-4 text-center text-sm font-bold"
-                                    :class="sub.grade ? 'text-emerald-400' : 'text-slate-600'"
-                                    x-text="sub.grade ? sub.grade.manualScore + '%' : '—'"></td>
-                                <td class="px-6 py-4 text-center text-lg font-black"
-                                    :class="sub.grade ? 'text-white' : 'text-slate-600'"
-                                    x-text="sub.grade ? sub.grade.compositeScore + '%' : '—'"></td>
-                                <td class="px-6 py-4 text-center">
-                                    <span class="text-[10px] font-black uppercase px-3 py-1 rounded-full"
-                                        :class="sub.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'"
-                                        x-text="sub.status"></span>
-                                </td>
-                            </tr>
-                            <tr x-show="sub._expanded && sub.grade" x-transition class="bg-slate-950/50">
-                                <td colspan="7" class="px-10 py-6">
-                                    <div class="grid grid-cols-2 gap-6">
-                                        <div>
-                                            <h5
-                                                class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">
-                                                Rubric Scores</h5>
-                                            <div class="grid grid-cols-2 gap-3">
-                                                <template x-for="[k,v] of Object.entries(sub.grade.scores || {})"
-                                                    :key="k">
-                                                    <div class="bg-slate-900 border border-slate-800 p-3 rounded-xl">
-                                                        <div class="text-[10px] text-slate-500 uppercase"
-                                                            x-text="k.replace(/([A-Z])/g, ' $1').trim()"></div>
-                                                        <div class="text-lg font-black text-blue-400"
-                                                            x-text="v + '/10'"></div>
-                                                    </div>
-                                                </template>
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <h5
-                                                class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">
-                                                Trainer Feedback</h5>
-                                            <div class="bg-slate-900 border border-slate-800 p-4 rounded-xl">
-                                                <p class="text-xs text-slate-300 italic leading-relaxed"
-                                                    x-text="sub.grade.comments || 'No comments provided.'"></p>
-                                                <div class="mt-3 text-[10px] text-slate-600">Graded by: <span
-                                                        class="text-slate-400" x-text="sub.grade.trainerName"></span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </td>
-                            </tr>
-                        </tbody>
-                        </template>
+                                <tr class="border-t border-slate-800/50 hover:bg-slate-800/30 transition-colors">
+                                    <td class="px-6 py-4">
+                                        <div class="text-sm font-bold text-white" x-text="sub.projectTitle"></div>
+                                        <div class="text-[10px] text-slate-500" x-text="sub.projectId"></div>
+                                    </td>
+                                    <td class="px-6 py-4">
+                                        <p class="text-xs text-slate-300 italic whitespace-pre-wrap"
+                                            x-text="sub.grade && sub.grade.comments ? sub.grade.comments : (sub.status === 'graded' ? 'No comments provided.' : 'Pending Trainer Review')">
+                                        </p>
+                                    </td>
+                                    <td class="px-6 py-4 text-center text-lg font-black"
+                                        :class="sub.grade ? 'text-white' : 'text-slate-600'"
+                                        x-text="sub.grade ? sub.grade.compositeScore + '%' : '—'"></td>
+                                </tr>
+                            </template>
                         </tbody>
                     </table>
                 </div>
@@ -1242,20 +1195,15 @@
                             <table class="w-full text-left">
                                 <thead>
                                     <tr class="bg-slate-800/50">
-                                        <th class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase">Candidate
-                                        </th>
-                                        <th class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase">Project
-                                        </th>
+                                        <th class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase">
+                                            Candidate</th>
+                                        <th class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase">
+                                            Problem Statement Name</th>
+                                        <th class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase">
+                                            Trainer Feedback</th>
                                         <th
                                             class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase text-center">
-                                            Day</th>
-                                        <th
-                                            class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase text-center">
-                                            Auto %</th>
-
-                                        <th
-                                            class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase text-center">
-                                            Final</th>
+                                            Grading</th>
                                         <th
                                             class="px-5 py-4 text-[10px] font-black text-slate-500 uppercase text-center">
                                             Status</th>
@@ -1278,16 +1226,20 @@
                                             <td class="px-5 py-4">
                                                 <div class="text-xs font-bold text-slate-300" x-text="sub.projectTitle">
                                                 </div>
-                                                <div class="text-[10px] text-slate-500" x-text="sub.topicName"></div>
+                                                <div class="text-[10px] text-slate-500"
+                                                    x-text="'Day ' + sub.day + ' • ' + sub.topicName"></div>
                                             </td>
-                                            <td class="px-5 py-4 text-center text-sm font-bold text-blue-400"
-                                                x-text="sub.day"></td>
-                                            <td class="px-5 py-4 text-center text-sm font-bold text-blue-400"
-                                                x-text="sub.autoScore + '%'"></td>
-
-                                            <td class="px-5 py-4 text-center text-sm font-black"
-                                                :class="sub.grade ? 'text-emerald-400' : 'text-slate-600'"
-                                                x-text="sub.grade ? sub.grade.compositeScore + '%' : '—'"></td>
+                                            <td class="px-5 py-4 text-xs text-slate-400 italic">
+                                                <div class="max-w-[200px] truncate" :title="sub.grade?.comments"
+                                                    x-text="sub.grade ? sub.grade.comments : 'Not yet graded'"></div>
+                                            </td>
+                                            <td class="px-5 py-4 text-center">
+                                                <div class="text-sm font-black"
+                                                    :class="sub.grade ? 'text-emerald-400' : 'text-slate-600'"
+                                                    x-text="sub.grade ? sub.grade.compositeScore + '%' : '—'"></div>
+                                                <div class="text-[9px] text-slate-500"
+                                                    x-text="'Auto: ' + sub.autoScore + '%'"></div>
+                                            </td>
                                             <td class="px-5 py-4 text-center">
                                                 <span class="text-[8px] font-black uppercase px-2 py-1 rounded-md"
                                                     :class="sub.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'"
@@ -1614,8 +1566,8 @@
                 class="fas fa-times"></i></button>
     </div>
 
-    <!-- Violation Warning Overlay -->
-    <div x-show="violationWarning" x-transition:enter="transition ease-out duration-200"
+    <!-- Violation Warning Overlay (candidates only) -->
+    <div x-show="violationWarning && user.role !== 'admin'" x-transition:enter="transition ease-out duration-200"
         x-transition:enter-start="opacity-0" x-transition:enter-end="opacity-100"
         x-transition:leave="transition ease-in duration-300" x-transition:leave-start="opacity-100"
         x-transition:leave-end="opacity-0"
@@ -1635,6 +1587,46 @@
             </div>
             <p class="text-red-400/50 text-[10px] mt-6 uppercase tracking-widest font-bold">This window will close
                 automatically...</p>
+        </div>
+    </div>
+
+    <!-- Critical Violation Warning (10+ violations) -->
+    <div x-show="criticalViolationWarning && user.role === 'candidate'" x-cloak
+        class="fixed inset-0 z-[300] bg-black/98 backdrop-blur-2xl flex items-center justify-center">
+        <div class="text-center max-w-xl px-8">
+            <!-- Pulsing danger icon -->
+            <div class="relative inline-flex mb-8">
+                <div
+                    class="w-32 h-32 bg-red-600/20 rounded-full flex items-center justify-center border-4 border-red-500/60 animate-ping absolute inset-0">
+                </div>
+                <div
+                    class="w-32 h-32 bg-red-600/30 rounded-full flex items-center justify-center border-4 border-red-500/60 relative">
+                    <i class="fas fa-ban text-red-400 text-6xl"></i>
+                </div>
+            </div>
+            <h2 class="text-5xl font-black text-red-400 tracking-tighter mb-3">🚨 CRITICAL WARNING</h2>
+            <p class="text-red-300 text-lg font-bold mb-2">Integrity Threshold Exceeded</p>
+            <p class="text-red-300/70 text-sm mb-8 leading-relaxed">
+                You have accumulated <span class="text-red-400 font-black" x-text="violationCount"></span> violations.
+                Repeated misconduct has been flagged and will be reported to the assessment administrator.
+                Further violations may result in immediate disqualification.
+            </p>
+            <div class="bg-red-950 border-2 border-red-500/50 rounded-2xl px-8 py-5 mb-8 text-left space-y-1.5">
+                <div class="text-[10px] font-black text-red-500 uppercase tracking-widest mb-3">Violation Log</div>
+                <template x-for="v in violationLog.slice(-5)" :key="v.count">
+                    <div class="flex items-center gap-3 text-xs text-red-300/70">
+                        <span class="text-red-600 font-black w-6 text-right" x-text="'#'+v.count"></span>
+                        <span class="text-red-500/50" x-text="v.time"></span>
+                        <span x-text="v.reason"></span>
+                    </div>
+                </template>
+            </div>
+            <button @click="criticalViolationWarning = false"
+                class="w-full bg-red-700 hover:bg-red-600 text-white font-black py-4 rounded-2xl text-sm uppercase tracking-widest transition-all border border-red-500/50">
+                I Understand — Continue Assessment
+            </button>
+            <p class="text-red-500/40 text-[10px] mt-4 uppercase tracking-widest font-bold">All activity is being
+                monitored and logged</p>
         </div>
     </div>
 
@@ -1762,6 +1754,7 @@
         function labApp() {
             return {
                 isLoggedIn: false, // Enforce login screen
+                authLoading: false, // Auth API in-progress flag
                 authStep: 'role',
                 currentView: 'dashboard',
                 wsTab: 'editor', // Start directly on code editor
@@ -1770,7 +1763,7 @@
                 isBuilding: false,
                 buildReport: null,
                 user: { name: '', email: '', role: 'candidate' },
-                adminCreds: { id: '', pass: '' },
+                adminCreds: { email: '', pass: '' },
                 generatedCode: '',
                 enteredCode: '',
                 activeFileIdx: 0,
@@ -1810,7 +1803,13 @@
                 // Anti-Cheat / Proctoring
                 violationCount: 0,
                 violationWarning: false,
+                criticalViolationWarning: false,
                 violationLog: [],
+
+                // Platform config (from /api/config)
+                topicFilter: [],   // empty = show all topics
+                platformTitle: 'SkillLyncVirtualLab',
+                platformSubtitle: 'Industrial Grade Embedded & ECU Project Platform',
 
                 topics: [
                     { id: 'C_INT', name: 'Intermediate C', icon: 'fas fa-code', difficulty: 'Intermediate', projectCount: 20, desc: 'Pointers, Bit Manipulation, Algorithms.' },
@@ -1820,9 +1819,14 @@
                     { id: 'MCU_SIM_RP2040', name: 'RP2040 Emulation (Hardware-in-the-Loop) ✨', icon: 'fas fa-microchip text-emerald-400', difficulty: 'Advanced', projectCount: 1, desc: 'True hardware emulation! Compiles C to ARM .hex binaries and runs them on a virtual Raspberry Pi Pico CPU inside your browser.' },
                     { id: 'MCU_SIM', name: 'MCU Simulations', icon: 'fas fa-microchip', difficulty: 'Advanced', projectCount: 1, desc: 'Bare-metal embedded C simulations handling memory-mapped registers, state machines, and peripherals.' },
                     { id: 'MBD_FUND', name: 'MBD Fundamentals', icon: 'fas fa-project-diagram', difficulty: 'Intermediate', projectCount: 20, desc: 'Conceptual C implementations of Simulink-style blocks. Focus: Gain, PID, Filter, and Logic modeling.' },
-                    { id: 'MBD_ADV', name: 'Advanced MBD & AUTOSAR', icon: 'fas fa-car', difficulty: 'Advanced', projectCount: 20, desc: 'Simulating production-grade MBD patterns in C: AUTOSAR RTE, ECU Diagnostics (UDS), and Control Algorithms.' }
+                    { id: 'MBD_ADV', name: 'Advanced MBD & AUTOSAR', icon: 'fas fa-car', difficulty: 'Advanced', projectCount: 20, desc: 'Simulating production-grade MBD patterns in C: AUTOSAR RTE, ECU Diagnostics (UDS), and Control Algorithms.' },
+                    { id: 'LINUX_SYS', name: 'Linux System Programming', icon: 'fab fa-linux', difficulty: 'Advanced', projectCount: 20, desc: 'POSIX C programming on Linux — fork/exec, pthreads, pipes, signals, semaphores & shared memory. Runs on the server like a real RPi4.' },
+                    { id: 'STM32_SIM', name: 'STM32 Register Programming', icon: 'fas fa-microchip', difficulty: 'Advanced', projectCount: 10, desc: 'Bare-metal C on STM32F1 — control GPIO, RCC, TIM, ADC and USART via direct register writes. Executes on QEMU Cortex-M3.' },
+                    { id: 'STM32_HAL', name: 'STM32 HAL Programming', icon: 'fas fa-layer-group', difficulty: 'Intermediate', projectCount: 10, desc: 'STM32 HAL API programming — HAL_GPIO, HAL_UART, HAL_TIM, HAL_ADC, I2C, SPI. HAL calls produce observable output for automated testing.' },
+                    { id: 'FREERTOS_SIM', name: 'FreeRTOS Simulation', icon: 'fas fa-tasks', difficulty: 'Advanced', projectCount: 10, desc: 'Real FreeRTOS running on the server via its POSIX/Linux port — tasks, queues, semaphores, mutexes, event groups & software timers.' }
 
                 ],
+
 
                 candidates: [
                     { name: 'Arjun Mehra', email: 'arjun.m@eng.com', code: 'SL-A8K1P2', completed: 18, hours: 42, strong: ['Embedded C', 'ADC'], weak: ['RTOS'], progress: 75, showDetails: false },
@@ -1830,7 +1834,113 @@
                 ],
 
                 projects: [
+                    // --- Linux System Programming (LINUX_SYS) ---
+                    { id: 'LINUX-01', topicId: 'LINUX_SYS', title: 'Hello from fork()', difficulty: 'Intermediate', points: 100, statement: 'Use fork() to create a child process. The parent should print "Parent: PID <ppid>" and the child should print "Child: PID <cpid>". The parent must wait for the child to finish.\nNote: PIDs change each run — print the actual PID values using getpid().', acceptance: ['fork() used', 'Parent waits with wait()', 'Both messages printed'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Two lines: Parent and Child PID messages (exact PIDs differ)', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <unistd.h>\n#include <sys/wait.h>\n\nint main() {\n    pid_t pid = fork();\n    if (pid < 0) {\n        perror("fork failed");\n        return 1;\n    }\n    // TODO:\n    // if child (pid == 0): print "Child: PID <pid>"\n    // if parent (pid > 0): wait for child, then print "Parent: PID <ppid>"\n    return 0;\n}' }], testCases: [{ name: 'Output Check', stdin: '', expectedOutput: 'Child:' }] },
+
+                    { id: 'LINUX-02', topicId: 'LINUX_SYS', title: 'Pipe Producer-Consumer', difficulty: 'Intermediate', points: 150, statement: 'Create an anonymous pipe between parent and child.\nChild writes integers 1..N to the pipe (one per write call). Parent reads them and prints their sum.\nRead N from stdin.', acceptance: ['pipe() used', 'fork() used', 'Parent reads and sums correctly'], deliverables: ['main.c'], inputSpec: 'Integer N', outputSpec: 'Sum: <value>', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <stdlib.h>\n#include <unistd.h>\n#include <sys/wait.h>\n\nint main() {\n    int n;\n    scanf("%d", &n);\n    int pipefd[2];\n    if (pipe(pipefd) < 0) { perror("pipe"); return 1; }\n    pid_t pid = fork();\n    if (pid == 0) {\n        // Child: close read end, write 1..n\n        close(pipefd[0]);\n        // TODO: write each integer to pipefd[1]\n        close(pipefd[1]);\n        return 0;\n    } else {\n        // Parent: close write end, read and sum\n        close(pipefd[1]);\n        // TODO: read integers, compute sum, print "Sum: <sum>"\n        wait(NULL);\n    }\n    return 0;\n}' }], testCases: [{ name: '5', stdin: '5', expectedOutput: 'Sum: 15' }, { name: '10', stdin: '10', expectedOutput: 'Sum: 55' }] },
+
+                    { id: 'LINUX-03', topicId: 'LINUX_SYS', title: 'POSIX Thread Counter', difficulty: 'Intermediate', points: 150, statement: 'Create N threads. Each thread increments a shared global counter by 1, protected by a mutex. After all threads finish, print the final counter value (should equal N).\nRead N from stdin.', acceptance: ['pthread_create', 'pthread_mutex_lock/unlock', 'pthread_join'], deliverables: ['main.c'], inputSpec: 'Integer N (1-100)', outputSpec: 'Counter: N', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <stdlib.h>\n#include <pthread.h>\n\nint counter = 0;\npthread_mutex_t lock;\n\nvoid* increment(void* arg) {\n    // TODO: lock mutex, increment counter, unlock\n    return NULL;\n}\n\nint main() {\n    int n;\n    scanf("%d", &n);\n    pthread_mutex_init(&lock, NULL);\n    pthread_t threads[100];\n    // TODO: create n threads, join them, print "Counter: <counter>"\n    pthread_mutex_destroy(&lock);\n    return 0;\n}' }], testCases: [{ name: '10 threads', stdin: '10', expectedOutput: 'Counter: 10' }, { name: '50 threads', stdin: '50', expectedOutput: 'Counter: 50' }] },
+
+                    { id: 'LINUX-04', topicId: 'LINUX_SYS', title: 'Signal Handler', difficulty: 'Intermediate', points: 150, statement: 'Register a custom signal handler for SIGUSR1. Send SIGUSR1 to yourself using kill(getpid(), SIGUSR1). Print "Received SIGUSR1" from inside the handler. Then print "Done" from main.', acceptance: ['sigaction or signal()', 'kill() to send signal', 'Handler prints message'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Received SIGUSR1\nDone', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <signal.h>\n#include <unistd.h>\n\nvoid handler(int sig) {\n    // TODO: print "Received SIGUSR1"\n}\n\nint main() {\n    // TODO: Register handler for SIGUSR1\n    // TODO: Send SIGUSR1 to self\n    printf("Done\\n");\n    return 0;\n}' }], testCases: [{ name: 'Signal', stdin: '', expectedOutput: 'Received SIGUSR1\nDone' }] },
+
+                    { id: 'LINUX-05', topicId: 'LINUX_SYS', title: 'Named FIFO Simulation', difficulty: 'Intermediate', points: 200, statement: 'Use a Unix named FIFO (mkfifo) for IPC in a single process: fork, child writes a message to the FIFO, parent reads and prints it.\nWrite the string "Hello from FIFO" to the FIFO.', acceptance: ['mkfifo used', 'fork used', 'Message transferred'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Hello from FIFO', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <fcntl.h>\n#include <sys/stat.h>\n#include <sys/wait.h>\n#include <unistd.h>\n\n#define FIFO_PATH "/tmp/vlab_fifo_test"\n\nint main() {\n    mkfifo(FIFO_PATH, 0666);\n    pid_t pid = fork();\n    if (pid == 0) {\n        // Child: write to FIFO\n        // TODO\n        return 0;\n    } else {\n        // Parent: read from FIFO and print\n        // TODO\n        wait(NULL);\n        unlink(FIFO_PATH);\n    }\n    return 0;\n}' }], testCases: [{ name: 'FIFO', stdin: '', expectedOutput: 'Hello from FIFO' }] },
+
+                    { id: 'LINUX-06', topicId: 'LINUX_SYS', title: 'POSIX Semaphore Sync', difficulty: 'Advanced', points: 200, statement: 'Use a POSIX unnamed semaphore (sem_init) to synchronize two threads.\nThread A prints "A" then posts the semaphore. Thread B waits on the semaphore then prints "B". Main must print "Done" after both. Output must always be: A\nB\nDone', acceptance: ['sem_init/sem_wait/sem_post', 'Correct ordering guaranteed'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'A\nB\nDone', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <pthread.h>\n#include <semaphore.h>\n\nsem_t sem;\n\nvoid* threadA(void* arg) {\n    printf("A\\n");\n    // TODO: post semaphore\n    return NULL;\n}\n\nvoid* threadB(void* arg) {\n    // TODO: wait on semaphore\n    printf("B\\n");\n    return NULL;\n}\n\nint main() {\n    sem_init(&sem, 0, 0);\n    pthread_t ta, tb;\n    pthread_create(&ta, NULL, threadA, NULL);\n    pthread_create(&tb, NULL, threadB, NULL);\n    pthread_join(ta, NULL);\n    pthread_join(tb, NULL);\n    sem_destroy(&sem);\n    printf("Done\\n");\n    return 0;\n}' }], testCases: [{ name: 'Order', stdin: '', expectedOutput: 'A\nB\nDone' }] },
+
+                    { id: 'LINUX-07', topicId: 'LINUX_SYS', title: 'Thread Pool (Fixed N Workers)', difficulty: 'Advanced', points: 250, statement: 'Implement a basic thread pool with N worker threads. The main thread dispatches M tasks (each task just prints its task ID) via a producer-consumer queue protected by a mutex + condition variable. Workers run until all tasks are done.\nRead N (workers) and M (tasks) from stdin. Print "Task <id>" for each task (order may vary).', acceptance: ['pthread_cond_wait/signal', 'Mutex protected queue', 'All M tasks executed'], deliverables: ['main.c'], inputSpec: 'N M', outputSpec: 'M lines of "Task <id>" (any order)', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <stdlib.h>\n#include <pthread.h>\n\n#define MAX_TASKS 100\n\nint task_queue[MAX_TASKS];\nint head = 0, tail = 0, count = 0, done = 0;\npthread_mutex_t q_lock;\npthread_cond_t q_cond;\n\nvoid* worker(void* arg) {\n    while (1) {\n        pthread_mutex_lock(&q_lock);\n        while (count == 0 && !done)\n            pthread_cond_wait(&q_cond, &q_lock);\n        if (count == 0 && done) {\n            pthread_mutex_unlock(&q_lock);\n            break;\n        }\n        int task = task_queue[head++ % MAX_TASKS];\n        count--;\n        pthread_mutex_unlock(&q_lock);\n        printf("Task %d\\n", task);\n    }\n    return NULL;\n}\n\nint main() {\n    int n, m;\n    scanf("%d %d", &n, &m);\n    // TODO: init mutex/cond, create n worker threads\n    // TODO: dispatch m tasks (ids 1..m) to queue, signal workers\n    // TODO: set done=1, broadcast, join threads\n    return 0;\n}' }], testCases: [{ name: '2 workers 4 tasks', stdin: '2 4', expectedOutput: 'Task' }] },
+
+                    { id: 'LINUX-08', topicId: 'LINUX_SYS', title: 'Shared Memory Counter', difficulty: 'Advanced', points: 200, statement: 'Use POSIX shared memory (shm_open + mmap) to share an integer counter between parent and child. Parent initializes counter to 0. Child increments it by 100 via the shared mapping. Parent reads and prints the final value after wait().', acceptance: ['shm_open/mmap used', 'fork synchronization', 'Correct final value'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Counter: 100', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <stdlib.h>\n#include <sys/mman.h>\n#include <sys/wait.h>\n#include <fcntl.h>\n#include <unistd.h>\n\n#define SHM_NAME "/vlab_shm_counter"\n\nint main() {\n    // TODO: create shared memory, map as int* counter\n    // fork: child increments *counter by 100\n    // parent: wait, print "Counter: <value>"\n    // cleanup: munmap, shm_unlink\n    return 0;\n}' }], testCases: [{ name: 'Counter', stdin: '', expectedOutput: 'Counter: 100' }] },
+
+                    { id: 'LINUX-09', topicId: 'LINUX_SYS', title: 'execv Subprocess', difficulty: 'Intermediate', points: 150, statement: 'Use fork() + execv() to run /bin/echo with the argument "Hello from execv". Parent waits for child and prints "Exit: 0" after child terminates normally.', acceptance: ['fork + execv', 'execv arg passed correctly', 'Parent wait'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Hello from execv\nExit: 0', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <unistd.h>\n#include <sys/wait.h>\n\nint main() {\n    pid_t pid = fork();\n    if (pid == 0) {\n        char *args[] = { "/bin/echo", "Hello from execv", NULL };\n        // TODO: execv with args\n        return 1;\n    } else {\n        int status;\n        waitpid(pid, &status, 0);\n        // TODO: print "Exit: 0" if normally exited\n    }\n    return 0;\n}' }], testCases: [{ name: 'exec', stdin: '', expectedOutput: 'Hello from execv\nExit: 0' }] },
+
+                    { id: 'LINUX-10', topicId: 'LINUX_SYS', title: 'Reader-Writer Lock', difficulty: 'Advanced', points: 250, statement: 'Use pthread_rwlock_t to implement a shared integer that 3 reader threads read and 1 writer thread writes to. Writer sets value to 42. Readers print "Read: 42". All threads must complete correctly.', acceptance: ['pthread_rwlock_rdlock/wrlock', 'No data race', 'All threads get correct value'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Read: 42 (3 times, any order)', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <pthread.h>\n\npthread_rwlock_t rwlock;\nint shared_val = 0;\n\nvoid* writer(void* arg) {\n    pthread_rwlock_wrlock(&rwlock);\n    shared_val = 42;\n    pthread_rwlock_unlock(&rwlock);\n    return NULL;\n}\n\nvoid* reader(void* arg) {\n    // TODO: acquire read lock, read shared_val, print "Read: <val>", unlock\n    return NULL;\n}\n\nint main() {\n    pthread_rwlock_init(&rwlock, NULL);\n    pthread_t w, r[3];\n    pthread_create(&w, NULL, writer, NULL);\n    pthread_join(w, NULL);\n    for (int i = 0; i < 3; i++) pthread_create(&r[i], NULL, reader, NULL);\n    for (int i = 0; i < 3; i++) pthread_join(r[i], NULL);\n    pthread_rwlock_destroy(&rwlock);\n    return 0;\n}' }], testCases: [{ name: 'Readers', stdin: '', expectedOutput: 'Read: 42' }] },
+
+                    { id: 'LINUX-11', topicId: 'LINUX_SYS', title: 'waitpid Exit Code Check', difficulty: 'Intermediate', points: 100, statement: 'Fork a child that exits with code 7. Parent uses waitpid() + WEXITSTATUS() to retrieve and print the exit code: "Exit code: 7".', acceptance: ['WEXITSTATUS macro', 'Correct exit code retrieved'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Exit code: 7', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <unistd.h>\n#include <sys/wait.h>\n\nint main() {\n    pid_t pid = fork();\n    if (pid == 0) {\n        return 7; // Child exits with code 7\n    } else {\n        int status;\n        waitpid(pid, &status, 0);\n        // TODO: extract and print exit code\n    }\n    return 0;\n}' }], testCases: [{ name: 'Exit Code', stdin: '', expectedOutput: 'Exit code: 7' }] },
+
+                    { id: 'LINUX-12', topicId: 'LINUX_SYS', title: 'Pipe-based Calculator', difficulty: 'Advanced', points: 200, statement: 'Parent sends two integers and an operator (+,-,*,/) to a child via a pipe. Child computes the result and sends it back on a second pipe. Parent prints "Result: <value>".\nRead A op B from stdin.', acceptance: ['Two pipes used', 'Child computes result', 'Parent prints result'], deliverables: ['main.c'], inputSpec: 'A op B (e.g. 10 + 5)', outputSpec: 'Result: <value>', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <stdlib.h>\n#include <unistd.h>\n#include <sys/wait.h>\n\nint main() {\n    int a, b, result;\n    char op;\n    scanf("%d %c %d", &a, &op, &b);\n    int p2c[2], c2p[2]; // parent-to-child, child-to-parent\n    pipe(p2c); pipe(c2p);\n    pid_t pid = fork();\n    if (pid == 0) {\n        close(p2c[1]); close(c2p[0]);\n        // TODO: read a, op, b from p2c[0]; compute; write result to c2p[1]\n        return 0;\n    } else {\n        close(p2c[0]); close(c2p[1]);\n        // TODO: write a, op, b to p2c[1]; read result from c2p[0]; print\n        wait(NULL);\n    }\n    return 0;\n}' }], testCases: [{ name: 'Add', stdin: '10 + 5', expectedOutput: 'Result: 15' }, { name: 'Mul', stdin: '6 * 7', expectedOutput: 'Result: 42' }] },
+
+                    { id: 'LINUX-13', topicId: 'LINUX_SYS', title: 'SIGALRM Countdown Timer', difficulty: 'Advanced', points: 200, statement: 'Register a SIGALRM handler that prints "Tick" each time it fires. Set alarm(1) in a loop to fire 3 times. After 3 ticks, print "Done".', acceptance: ['SIGALRM handler registered', 'alarm() used', 'Exactly 3 ticks'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Tick\nTick\nTick\nDone', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <signal.h>\n#include <unistd.h>\n\nint ticks = 0;\n\nvoid handler(int sig) {\n    ticks++;\n    printf("Tick\\n");\n    fflush(stdout);\n}\n\nint main() {\n    signal(SIGALRM, handler);\n    // TODO: fire alarm 3 times (use alarm(1) + pause() in a loop)\n    printf("Done\\n");\n    return 0;\n}' }], testCases: [{ name: 'Timer', stdin: '', expectedOutput: 'Tick\nTick\nTick\nDone' }] },
+
+                    { id: 'LINUX-14', topicId: 'LINUX_SYS', title: 'Thread Local Storage', difficulty: 'Advanced', points: 200, statement: 'Use __thread (GCC TLS) or pthread_key to give each of 4 threads their own private integer (set to their thread index 0-3). Each thread prints "Thread <idx>: value=<idx>". No mutex required — TLS guarantees isolation.', acceptance: ['__thread or pthread_key_t', 'Each thread sees its own value', '4 lines output'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: '4 lines: Thread N: value=N (any order)', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <pthread.h>\n#include <stdlib.h>\n\n__thread int tls_val; // Thread-Local Storage\n\nvoid* task(void* arg) {\n    int idx = *(int*)arg;\n    tls_val = idx;\n    // small sleep to allow interleaving\n    printf("Thread %d: value=%d\\n", idx, tls_val);\n    return NULL;\n}\n\nint main() {\n    pthread_t t[4];\n    int ids[4];\n    for (int i = 0; i < 4; i++) {\n        ids[i] = i;\n        pthread_create(&t[i], NULL, task, &ids[i]);\n    }\n    for (int i = 0; i < 4; i++) pthread_join(t[i], NULL);\n    return 0;\n}' }], testCases: [{ name: 'TLS', stdin: '', expectedOutput: 'value=' }] },
+
+                    { id: 'LINUX-15', topicId: 'LINUX_SYS', title: 'Zombie Process Prevention', difficulty: 'Advanced', points: 150, statement: 'Create 3 child processes. Use SIGCHLD with SA_NOCLDWAIT flag (or signal(SIGCHLD, SIG_IGN)) to auto-reap children without calling wait(). After all children exit, parent prints "Reaped: 3" using a global counter incremented in a SIGCHLD handler (sigaction).', acceptance: ['SIGCHLD handler', 'No explicit wait() in main loop', 'All 3 reaped'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Reaped: 3', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <stdlib.h>\n#include <signal.h>\n#include <unistd.h>\n#include <sys/wait.h>\n\nvolatile int reaped = 0;\n\nvoid sigchld_handler(int sig) {\n    while (waitpid(-1, NULL, WNOHANG) > 0) reaped++;\n}\n\nint main() {\n    struct sigaction sa = { .sa_handler = sigchld_handler, .sa_flags = SA_RESTART };\n    sigaction(SIGCHLD, &sa, NULL);\n    for (int i = 0; i < 3; i++) {\n        if (fork() == 0) return 0; // child exits immediately\n    }\n    // TODO: wait until reaped == 3 (hint: use a small busy-wait loop)\n    printf("Reaped: %d\\n", reaped);\n    return 0;\n}' }], testCases: [{ name: 'Reap', stdin: '', expectedOutput: 'Reaped: 3' }] },
+
+                    { id: 'LINUX-16', topicId: 'LINUX_SYS', title: 'Memory-Mapped File', difficulty: 'Advanced', points: 250, statement: 'Use mmap() to map /tmp/vlab_mmap_test.txt into memory. Write "MMAP_HELLO" to the file via the mapping. Then read it back with a second mmap call and print the content.', acceptance: ['mmap/munmap used', 'ftruncate to set size', 'Content matches'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'MMAP_HELLO', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <fcntl.h>\n#include <sys/mman.h>\n#include <unistd.h>\n\n#define FILE_PATH "/tmp/vlab_mmap_test.txt"\n#define DATA "MMAP_HELLO"\n\nint main() {\n    // TODO: open file, ftruncate to strlen(DATA)+1 bytes\n    // TODO: mmap with PROT_WRITE, write DATA into mapping, munmap\n    // TODO: open again, mmap with PROT_READ, printf the content, munmap\n    // Cleanup: unlink(FILE_PATH)\n    return 0;\n}' }], testCases: [{ name: 'MMAP', stdin: '', expectedOutput: 'MMAP_HELLO' }] },
+
+                    { id: 'LINUX-17', topicId: 'LINUX_SYS', title: 'Barrier Synchronization', difficulty: 'Advanced', points: 250, statement: 'Create N threads. Each thread does some work then waits at a pthread_barrier. After all threads pass the barrier, each prints "Thread <id> passed barrier". N is read from stdin.', acceptance: ['pthread_barrier_init/wait', 'All threads synchronize at barrier', 'Correct output'], deliverables: ['main.c'], inputSpec: 'N (2-8)', outputSpec: 'N lines: Thread N passed barrier (any order)', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <stdlib.h>\n#include <pthread.h>\n\npthread_barrier_t barrier;\n\nvoid* task(void* arg) {\n    int id = *(int*)arg;\n    // Simulate work\n    pthread_barrier_wait(&barrier);\n    printf("Thread %d passed barrier\\n", id);\n    return NULL;\n}\n\nint main() {\n    int n;\n    scanf("%d", &n);\n    pthread_barrier_init(&barrier, NULL, n);\n    pthread_t threads[8];\n    int ids[8];\n    for (int i = 0; i < n; i++) {\n        ids[i] = i;\n        pthread_create(&threads[i], NULL, task, &ids[i]);\n    }\n    for (int i = 0; i < n; i++) pthread_join(threads[i], NULL);\n    pthread_barrier_destroy(&barrier);\n    return 0;\n}' }], testCases: [{ name: '3 threads', stdin: '3', expectedOutput: 'passed barrier' }] },
+
+                    { id: 'LINUX-18', topicId: 'LINUX_SYS', title: 'sigprocmask Signal Blocking', difficulty: 'Advanced', points: 200, statement: 'Block SIGUSR1 using sigprocmask(SIG_BLOCK). Send SIGUSR1 to self. Unblock using sigprocmask(SIG_UNBLOCK) with a handler installed. Print "Unblocked: signal delivered". This tests that blocked signals are delivered upon unblock.', acceptance: ['sigprocmask block/unblock', 'Handler triggered after unblock'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Unblocked: signal delivered', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <signal.h>\n#include <unistd.h>\n\nvoid handler(int sig) { printf("Unblocked: signal delivered\\n"); }\n\nint main() {\n    signal(SIGUSR1, handler);\n    sigset_t set;\n    sigemptyset(&set);\n    sigaddset(&set, SIGUSR1);\n    // TODO: block SIGUSR1\n    kill(getpid(), SIGUSR1);\n    // TODO: unblock SIGUSR1 (handler fires here)\n    return 0;\n}' }], testCases: [{ name: 'Block', stdin: '', expectedOutput: 'Unblocked: signal delivered' }] },
+
+                    { id: 'LINUX-19', topicId: 'LINUX_SYS', title: 'Orphan & Adopted Process', difficulty: 'Advanced', points: 200, statement: 'Fork a child. Parent exits immediately. Child sleeps 100ms then checks its own ppid using getppid(). In Linux orphaned processes are adopted by init (PID 1) or a subreaper. Child prints "Orphaned: ppid=<ppid>" — ppid will be 1 or the subreaper PID (not the original parent PID).', acceptance: ['Parent exits before child checks ppid', 'Child detects reparenting'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Orphaned: ppid=', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <unistd.h>\n\nint main() {\n    pid_t orig_ppid = getpid(); // this is the parent\n    if (fork() == 0) {\n        // Child\n        usleep(100000); // 100ms\n        printf("Orphaned: ppid=%d\\n", getppid());\n        return 0;\n    }\n    // Parent exits immediately\n    return 0;\n}' }], testCases: [{ name: 'Orphan', stdin: '', expectedOutput: 'Orphaned: ppid=' }] },
+
+                    { id: 'LINUX-20', topicId: 'LINUX_SYS', title: 'Producer-Consumer with Condition Variables', difficulty: 'Advanced', points: 300, statement: 'Implement a bounded buffer (size 5) with one producer thread and one consumer thread, synchronized using a mutex + two condition variables (not_full, not_empty). Producer pushes 10 items (values 0..9). Consumer pops and prints "Consumed: <value>". Output must be in order 0..9.', acceptance: ['pthread_cond_wait/signal for both conditions', 'Bounded buffer respected', 'All 10 items consumed in order'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: '10 lines: Consumed: 0 through Consumed: 9', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <pthread.h>\n\n#define BUF_SIZE 5\n#define NUM_ITEMS 10\n\nint buffer[BUF_SIZE], head = 0, tail = 0, count = 0;\npthread_mutex_t lock;\npthread_cond_t not_full, not_empty;\n\nvoid* producer(void* arg) {\n    for (int i = 0; i < NUM_ITEMS; i++) {\n        pthread_mutex_lock(&lock);\n        while (count == BUF_SIZE) pthread_cond_wait(&not_full, &lock);\n        buffer[tail++ % BUF_SIZE] = i;\n        count++;\n        pthread_cond_signal(&not_empty);\n        pthread_mutex_unlock(&lock);\n    }\n    return NULL;\n}\n\nvoid* consumer(void* arg) {\n    // TODO: consume 10 items, print each as "Consumed: <val>"\n    return NULL;\n}\n\nint main() {\n    pthread_mutex_init(&lock, NULL);\n    pthread_cond_init(&not_full, NULL);\n    pthread_cond_init(&not_empty, NULL);\n    pthread_t p, c;\n    pthread_create(&p, NULL, producer, NULL);\n    pthread_create(&c, NULL, consumer, NULL);\n    pthread_join(p, NULL);\n    pthread_join(c, NULL);\n    return 0;\n}' }], testCases: [{ name: 'Consumed 0', stdin: '', expectedOutput: 'Consumed: 0' }, { name: 'Consumed 9', stdin: '', expectedOutput: 'Consumed: 9' }] },
+
+
+                    // --- STM32 Register Direct (STM32_SIM) ---
+                    { id: 'STM32-01', topicId: 'STM32_SIM', target: 'stm32', title: 'Enable GPIOA Clock & Set Pin Output', difficulty: 'Intermediate', points: 150, statement: 'Enable the GPIOA peripheral clock via RCC->APB2ENR. Configure PA5 (bit 5) as a push-pull output by setting CRL bits. Then set PA5 HIGH via ODR and print its state.', acceptance: ['RCC->APB2ENR IOPAEN set', 'GPIOA->CRL configured', 'ODR bit 5 set', 'printf output'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'PA5: HIGH', files: [{ name: 'main.c', content: '#include "stm32f1xx_sim.h"\n\nint main() {\n    // TODO: Enable GPIOA clock (RCC->APB2ENR |= RCC_APB2ENR_IOPAEN)\n    // TODO: Set PA5 as output in CRL (bits 20-23 = 0x1)\n    // TODO: Set PA5 HIGH via ODR\n    // TODO: Read back and printf("PA5: %s\\n", ...)\n    return 0;\n}' }], testCases: [{ name: 'PA5 HIGH', stdin: '', expectedOutput: 'PA5: HIGH' }] },
+
+                    { id: 'STM32-02', topicId: 'STM32_SIM', target: 'stm32', title: 'GPIO Bit-Banding Read', difficulty: 'Intermediate', points: 150, statement: 'Set GPIOB ODR bit 3 HIGH, then read it back using IDR and print the state. Use BSRR for atomic set (write 1 to BSRR bit 3 to set, bit 19 to clear).', acceptance: ['BSRR used for set', 'IDR read back', 'State printed'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'PB3: 1', files: [{ name: 'main.c', content: '#include "stm32f1xx_sim.h"\n\nint main() {\n    RCC->APB2ENR |= RCC_APB2ENR_IOPBEN;\n    // Configure PB3 as output\n    GPIOB->CRL = (GPIOB->CRL & ~(0xF << 12)) | (0x1 << 12);\n    // TODO: Use BSRR to set PB3 HIGH (write 1 to bit 3)\n    // TODO: Read IDR bit 3 and print "PB3: <value>"\n    return 0;\n}' }], testCases: [{ name: 'PB3 read', stdin: '', expectedOutput: 'PB3: 1' }] },
+
+                    { id: 'STM32-03', topicId: 'STM32_SIM', target: 'stm32', title: 'TIM2 Counter Setup', difficulty: 'Advanced', points: 200, statement: 'Enable TIM2 clock, set PSC=7199 (72MHz/7200=10kHz), ARR=999 (10kHz/1000=10Hz). Enable the counter (TIM_CR1_CEN). Print the PSC and ARR values to verify setup.', acceptance: ['TIM2 clock enabled', 'PSC and ARR set correctly', 'CEN bit set'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'PSC:7199 ARR:999', files: [{ name: 'main.c', content: '#include "stm32f1xx_sim.h"\n\nint main() {\n    RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;\n    // TODO: Set TIM2->PSC = 7199\n    // TODO: Set TIM2->ARR = 999\n    // TODO: Set CR1 CEN bit\n    printf("PSC:%lu ARR:%lu\\n", TIM2->PSC, TIM2->ARR);\n    return 0;\n}' }], testCases: [{ name: 'Config', stdin: '', expectedOutput: 'PSC:7199 ARR:999' }] },
+
+                    { id: 'STM32-04', topicId: 'STM32_SIM', target: 'stm32', title: 'ADC Single Conversion', difficulty: 'Advanced', points: 200, statement: 'Enable ADC1, power it on (ADON), trigger a software conversion (SWSTART), poll for EOC, then read the DR register. Print "ADC: <value>".', acceptance: ['ADC_CR2_ADON set', 'SWSTART triggered', 'EOC polled', 'DR read'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'ADC:', files: [{ name: 'main.c', content: '#include "stm32f1xx_sim.h"\n\nint main() {\n    RCC->APB2ENR |= RCC_APB2ENR_ADC1EN;\n    // TODO: Power on ADC1 (ADC1->CR2 |= ADC_CR2_ADON)\n    // TODO: Start conversion (ADC1->CR2 |= ADC_CR2_SWSTART)\n    // Simulate: write a mock value to DR\n    ADC1->DR = 2048;\n    ADC1->SR |= ADC_SR_EOC;\n    // TODO: Poll ADC SR EOC bit\n    // TODO: Read ADC1->DR and printf("ADC:%lu\\n", ...)\n    return 0;\n}' }], testCases: [{ name: 'ADC read', stdin: '', expectedOutput: 'ADC:2048' }] },
+
+                    { id: 'STM32-05', topicId: 'STM32_SIM', target: 'stm32', title: 'USART Baud Rate Register', difficulty: 'Intermediate', points: 150, statement: 'Calculate BRR for USART1 at 9600 baud with 72MHz APB2 clock (BRR = 72000000/9600 = 7500). Set USART1->BRR, enable USART and TX, print "USART:OK".', acceptance: ['BRR set to 7500', 'UE and TE bits set', 'OK printed'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'USART:OK', files: [{ name: 'main.c', content: '#include "stm32f1xx_sim.h"\n\n#define APB2_CLK 72000000UL\n#define BAUD     9600UL\n\nint main() {\n    RCC->APB2ENR |= RCC_APB2ENR_USART1EN;\n    // TODO: Set USART1->BRR = APB2_CLK / BAUD\n    // TODO: Enable USART (CR1 UE=1, TE=1)\n    printf("USART:OK\\n");\n    return 0;\n}' }], testCases: [{ name: 'BRR', stdin: '', expectedOutput: 'USART:OK' }] },
+
+                    { id: 'STM32-06', topicId: 'STM32_SIM', target: 'stm32', title: 'Bit Masking GPIO CRL Config', difficulty: 'Intermediate', points: 150, statement: 'Configure PA0..PA3 as push-pull output (10MHz) by carefully masking and setting CRL without disturbing other pins. Print the resulting CRL value in hex.', acceptance: ['Only pins 0-3 modified', 'Correct OUTPUT_PP encoding', 'CRL hex printed'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'CRL:0x00001111', files: [{ name: 'main.c', content: '#include "stm32f1xx_sim.h"\n\nint main() {\n    RCC->APB2ENR |= RCC_APB2ENR_IOPAEN;\n    GPIOA->CRL = 0; // Clear first\n    // TODO: Set pins PA0..PA3 as output (CNF=00, MODE=01 → 0x1 each nibble)\n    printf("CRL:0x%08lX\\n", GPIOA->CRL);\n    return 0;\n}' }], testCases: [{ name: 'CRL', stdin: '', expectedOutput: 'CRL:0x00001111' }] },
+
+                    { id: 'STM32-07', topicId: 'STM32_SIM', target: 'stm32', title: 'SysTick Timer Setup', difficulty: 'Advanced', points: 200, statement: 'Configure the SysTick timer with LOAD = 72000 - 1 (1ms tick at 72MHz), enable it (CTRL bits 0+1+2). Print "SysTick:LOAD=71999".', acceptance: ['LOAD set correctly', 'All enable bits set', 'Printf output'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'SysTick:LOAD=71999', files: [{ name: 'main.c', content: '#include "stm32f1xx_sim.h"\n\n#define SYSTICK_LOAD_1MS  (72000UL - 1UL)\n\nint main() {\n    // TODO: Set SysTick->LOAD = SYSTICK_LOAD_1MS\n    // TODO: SysTick->VAL = 0 (clear current value)\n    // TODO: SysTick->CTRL = 0x7 (CLKSOURCE|TICKINT|ENABLE)\n    printf("SysTick:LOAD=%lu\\n", SysTick->LOAD);\n    return 0;\n}' }], testCases: [{ name: 'SysTick', stdin: '', expectedOutput: 'SysTick:LOAD=71999' }] },
+
+                    { id: 'STM32-08', topicId: 'STM32_SIM', target: 'stm32', title: 'Toggle LED N Times', difficulty: 'Intermediate', points: 150, statement: 'Toggle PC13 (the classic STM32 Blue Pill LED) N times and print the final ODR state. N is read from stdin. PC13 starts LOW.', acceptance: ['Toggle logic correct', 'Final state computed', 'ODR bit 13 printed'], deliverables: ['main.c'], inputSpec: 'Integer N', outputSpec: 'PC13: HIGH or PC13: LOW', files: [{ name: 'main.c', content: '#include "stm32f1xx_sim.h"\n\nint main() {\n    int n; scanf("%d", &n);\n    RCC->APB2ENR |= RCC_APB2ENR_IOPCEN;\n    GPIOC->CRH = (GPIOC->CRH & ~(0xF << 20)) | (0x1 << 20); // PC13 output\n    GPIOC->ODR &= ~GPIO_PIN_13; // Start LOW\n    for (int i = 0; i < n; i++) {\n        // TODO: Toggle PC13 via ODR XOR\n    }\n    printf("PC13: %s\\n", (GPIOC->ODR & GPIO_PIN_13) ? "HIGH" : "LOW");\n    return 0;\n}' }], testCases: [{ name: '3 toggles', stdin: '3', expectedOutput: 'PC13: HIGH' }, { name: '4 toggles', stdin: '4', expectedOutput: 'PC13: LOW' }] },
+
+                    { id: 'STM32-09', topicId: 'STM32_SIM', target: 'stm32', title: 'PWM Duty Cycle Calculation', difficulty: 'Advanced', points: 200, statement: 'Given ARR=999 and a target duty cycle D% (from stdin), calculate CCR1 = (D * (ARR+1)) / 100. Set TIM2->CCR1 and print "CCR1:<value>".', acceptance: ['Correct CCR1 formula', 'CCR1 value set', 'Printf output'], deliverables: ['main.c'], inputSpec: 'Integer D (0-100)', outputSpec: 'CCR1:<value>', files: [{ name: 'main.c', content: '#include "stm32f1xx_sim.h"\n\n#define ARR_VAL 999UL\n\nint main() {\n    int duty; scanf("%d", &duty);\n    RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;\n    TIM2->ARR = ARR_VAL;\n    // TODO: Calculate CCR1 = (duty * (ARR_VAL+1)) / 100\n    // TODO: Set TIM2->CCR1\n    printf("CCR1:%lu\\n", TIM2->CCR1);\n    return 0;\n}' }], testCases: [{ name: '50%', stdin: '50', expectedOutput: 'CCR1:500' }, { name: '75%', stdin: '75', expectedOutput: 'CCR1:750' }] },
+
+                    { id: 'STM32-10', topicId: 'STM32_SIM', target: 'stm32', title: 'RCC System Clock Source Select', difficulty: 'Advanced', points: 200, statement: 'Read the RCC->CFGR SWS bits (bits 2-3) after setting SW bits (bits 0-1) to 0x2 (PLL as clock). Print "CLK:PLL" if SWS matches, else "CLK:HSI".', acceptance: ['SW bits set correctly', 'SWS bits read back', 'Correct output'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'CLK:PLL', files: [{ name: 'main.c', content: '#include "stm32f1xx_sim.h"\n\nint main() {\n    // TODO: Set RCC->CFGR SW bits to 0x02 (PLL)\n    // Simulate: SWS mirrors SW in our stub\n    RCC->CFGR = (RCC->CFGR & ~0xF) | 0xA; // SW=10, SWS=10 (both PLL)\n    uint32_t sws = (RCC->CFGR >> 2) & 0x3;\n    printf("CLK:%s\\n", sws == 2 ? "PLL" : "HSI");\n    return 0;\n}' }], testCases: [{ name: 'PLL', stdin: '', expectedOutput: 'CLK:PLL' }] },
+
+                    // --- STM32 HAL (STM32_HAL) ---
+                    { id: 'HAL-01', topicId: 'STM32_HAL', target: 'stm32_hal', title: 'HAL GPIO Init & Write', difficulty: 'Intermediate', points: 150, statement: 'Use HAL APIs to initialise GPIOA (enable clock, init PA5 as OUTPUT_PP) and write it HIGH. Observe the [HAL] GPIO log output.', acceptance: ['__HAL_RCC_GPIOA_CLK_ENABLE()', 'HAL_GPIO_Init called', 'HAL_GPIO_WritePin HIGH'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: '[HAL] GPIO_Write: PA5 = HIGH', files: [{ name: 'main.c', content: '#include "stm32_hal_stub.h"\n\nint main() {\n    __HAL_RCC_GPIOA_CLK_ENABLE();\n    GPIO_InitTypeDef init = {\n        .Pin = GPIO_PIN_5,\n        .Mode = GPIO_MODE_OUTPUT_PP,\n        .Pull = GPIO_NOPULL,\n        .Speed = GPIO_SPEED_FREQ_HIGH\n    };\n    HAL_GPIO_Init(GPIOA, &init);\n    // TODO: Write GPIO_PIN_5 HIGH\n    return 0;\n}' }], testCases: [{ name: 'PA5 HIGH', stdin: '', expectedOutput: '[HAL] GPIO_Write: PA5 = HIGH' }] },
+
+                    { id: 'HAL-02', topicId: 'STM32_HAL', target: 'stm32_hal', title: 'HAL GPIO Toggle Blink', difficulty: 'Intermediate', points: 150, statement: 'Toggle PA5 N times using HAL_GPIO_TogglePin with HAL_Delay(500) between each toggle. Read N from stdin.', acceptance: ['HAL_GPIO_TogglePin', 'HAL_Delay called', 'N iterations'], deliverables: ['main.c'], inputSpec: 'Integer N', outputSpec: 'N lines: [HAL] GPIO_Toggle: PA5 → HIGH or LOW', files: [{ name: 'main.c', content: '#include "stm32_hal_stub.h"\n\nint main() {\n    int n; scanf("%d", &n);\n    HAL_Init();\n    __HAL_RCC_GPIOA_CLK_ENABLE();\n    GPIO_InitTypeDef init = { .Pin = GPIO_PIN_5, .Mode = GPIO_MODE_OUTPUT_PP };\n    HAL_GPIO_Init(GPIOA, &init);\n    for (int i = 0; i < n; i++) {\n        // TODO: Toggle PA5, then HAL_Delay(500)\n    }\n    return 0;\n}' }], testCases: [{ name: '2 toggles', stdin: '2', expectedOutput: 'GPIO_Toggle' }] },
+
+                    { id: 'HAL-03', topicId: 'STM32_HAL', target: 'stm32_hal', title: 'HAL UART Transmit', difficulty: 'Intermediate', points: 150, statement: 'Initialise UART1 at 115200 baud and transmit the string "Hello STM32" using HAL_UART_Transmit.', acceptance: ['HAL_UART_Init called', 'HAL_UART_Transmit with correct string'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: '[UART TX] Hello STM32', files: [{ name: 'main.c', content: '#include "stm32_hal_stub.h"\n#include <string.h>\n\nUART_HandleTypeDef huart1;\n\nint main() {\n    __HAL_RCC_USART1_CLK_ENABLE();\n    huart1.Init.BaudRate = 115200;\n    huart1.Init.WordLength = UART_WORDLENGTH_8B;\n    huart1.Init.StopBits = UART_STOPBITS_1;\n    huart1.Init.Parity = UART_PARITY_NONE;\n    huart1.Init.Mode = UART_MODE_TX_RX;\n    HAL_UART_Init(&huart1);\n    uint8_t msg[] = "Hello STM32";\n    // TODO: Transmit msg using HAL_UART_Transmit\n    return 0;\n}' }], testCases: [{ name: 'TX', stdin: '', expectedOutput: '[UART TX] Hello STM32' }] },
+
+                    { id: 'HAL-04', topicId: 'STM32_HAL', target: 'stm32_hal', title: 'HAL Timer Init', difficulty: 'Intermediate', points: 150, statement: 'Initialise TIM2 with Prescaler=7199, Period=999, CounterMode=UP. Start it. Print the prescaler and period from Init struct after init.', acceptance: ['HAL_TIM_Base_Init called', 'HAL_TIM_Base_Start called', 'Correct PSC/ARR values'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'PSC:7199 ARR:999', files: [{ name: 'main.c', content: '#include "stm32_hal_stub.h"\n\nTIM_HandleTypeDef htim2;\n\nint main() {\n    __HAL_RCC_TIM2_CLK_ENABLE();\n    htim2.Init.Prescaler = 7199;\n    htim2.Init.CounterMode = TIM_COUNTERMODE_UP;\n    htim2.Init.Period = 999;\n    HAL_TIM_Base_Init(&htim2);\n    HAL_TIM_Base_Start(&htim2);\n    printf("PSC:%lu ARR:%lu\\n", htim2.Init.Prescaler, htim2.Init.Period);\n    return 0;\n}' }], testCases: [{ name: 'TIM', stdin: '', expectedOutput: 'PSC:7199 ARR:999' }] },
+
+                    { id: 'HAL-05', topicId: 'STM32_HAL', target: 'stm32_hal', title: 'HAL ADC Read & Voltage Convert', difficulty: 'Advanced', points: 200, statement: 'Init ADC1, start a conversion, poll for completion, read the value (mock = 2048). Convert to voltage: V = value * 3.3 / 4095. Print "V:1.65" (2 decimal places).', acceptance: ['HAL_ADC_Start/PollForConversion/GetValue called', 'Voltage formula correct'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'V:1.65', files: [{ name: 'main.c', content: '#include "stm32_hal_stub.h"\n\nADC_HandleTypeDef hadc1;\n\nint main() {\n    __HAL_RCC_ADC1_CLK_ENABLE();\n    HAL_ADC_Init(&hadc1);\n    HAL_ADC_Start(&hadc1);\n    HAL_ADC_PollForConversion(&hadc1, 100);\n    uint32_t raw = HAL_ADC_GetValue(&hadc1);\n    // TODO: Convert raw to voltage and printf("V:%.2f\\n", voltage)\n    return 0;\n}' }], testCases: [{ name: 'ADC V', stdin: '', expectedOutput: 'V:1.65' }] },
+
+                    { id: 'HAL-06', topicId: 'STM32_HAL', target: 'stm32_hal', title: 'HAL Button Debounce', difficulty: 'Advanced', points: 200, statement: 'Simulate reading a button on PA0 with HAL_GPIO_ReadPin. Read it 5 times. Count how many times it is HIGH (mock always returns GPIO_PIN_RESET so count=0). Print "Presses: <count>".', acceptance: ['HAL_GPIO_ReadPin in loop', 'Counter logic correct'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Presses: 0', files: [{ name: 'main.c', content: '#include "stm32_hal_stub.h"\n\nint main() {\n    __HAL_RCC_GPIOA_CLK_ENABLE();\n    GPIO_InitTypeDef init = { .Pin = GPIO_PIN_0, .Mode = GPIO_MODE_INPUT, .Pull = GPIO_PULLDOWN };\n    HAL_GPIO_Init(GPIOA, &init);\n    int count = 0;\n    for (int i = 0; i < 5; i++) {\n        if (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_SET) count++;\n    }\n    printf("Presses: %d\\n", count);\n    return 0;\n}' }], testCases: [{ name: 'Debounce', stdin: '', expectedOutput: 'Presses: 0' }] },
+
+                    { id: 'HAL-07', topicId: 'STM32_HAL', target: 'stm32_hal', title: 'HAL I2C Master Transmit', difficulty: 'Advanced', points: 200, statement: 'Use HAL_I2C_Master_Transmit to send the byte 0x42 to device address 0x68 (MPU6050). Print the I2C TX log.', acceptance: ['HAL_I2C_Master_Transmit called', 'Correct device address', 'Correct data'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: '[I2C TX] addr=0x68', files: [{ name: 'main.c', content: '#include "stm32_hal_stub.h"\n\nI2C_HandleTypeDef hi2c1;\n\nint main() {\n    __HAL_RCC_I2C1_CLK_ENABLE();\n    uint8_t data = 0x42;\n    // TODO: Call HAL_I2C_Master_Transmit to device 0x68, send &data, 1 byte\n    return 0;\n}' }], testCases: [{ name: 'I2C', stdin: '', expectedOutput: '[I2C TX] addr=0x68' }] },
+
+                    { id: 'HAL-08', topicId: 'STM32_HAL', target: 'stm32_hal', title: 'HAL SPI Transmit Buffer', difficulty: 'Advanced', points: 200, statement: 'Initialise SPI1 and transmit 4 bytes {0xDE, 0xAD, 0xBE, 0xEF} using HAL_SPI_Transmit. Print SPI TX log.', acceptance: ['HAL_SPI_Transmit called', '4 bytes sent', 'First byte 0xDE'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: '[SPI TX] 4 bytes: 0xDE', files: [{ name: 'main.c', content: '#include "stm32_hal_stub.h"\n\nSPI_HandleTypeDef hspi1;\n\nint main() {\n    __HAL_RCC_SPI1_CLK_ENABLE();\n    uint8_t buf[] = { 0xDE, 0xAD, 0xBE, 0xEF };\n    // TODO: Call HAL_SPI_Transmit with buf, 4 bytes, timeout 100\n    return 0;\n}' }], testCases: [{ name: 'SPI', stdin: '', expectedOutput: '[SPI TX] 4 bytes: 0xDE' }] },
+
+                    { id: 'HAL-09', topicId: 'STM32_HAL', target: 'stm32_hal', title: 'HAL Delay Tick Counter', difficulty: 'Intermediate', points: 100, statement: 'Call HAL_Delay(200) three times. After each delay, print the current tick from HAL_GetTick(). Expected output: tick=200, tick=400, tick=600.', acceptance: ['3 x HAL_Delay(200)', 'HAL_GetTick returns cumulative ms'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'tick=200\ntick=400\ntick=600', files: [{ name: 'main.c', content: '#include "stm32_hal_stub.h"\n\nint main() {\n    HAL_Init();\n    // TODO: Call HAL_Delay(200) followed by printf("tick=%lu\\n", HAL_GetTick()), 3 times\n    return 0;\n}' }], testCases: [{ name: 'Ticks', stdin: '', expectedOutput: 'tick=200' }] },
+
+                    { id: 'HAL-10', topicId: 'STM32_HAL', target: 'stm32_hal', title: 'HAL UART Echo (Simulate)', difficulty: 'Advanced', points: 250, statement: 'Receive 6 bytes from UART with HAL_UART_Receive (mock provides "TEST\\r\\n"), then retransmit with HAL_UART_Transmit. Verify [UART TX] shows the echoed data.', acceptance: ['HAL_UART_Receive called', 'HAL_UART_Transmit with received data'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: '[UART TX] TEST', files: [{ name: 'main.c', content: '#include "stm32_hal_stub.h"\n#include <string.h>\n\nUART_HandleTypeDef huart1;\n\nint main() {\n    HAL_UART_Init(&huart1);\n    uint8_t buf[16] = {0};\n    // TODO: Receive into buf (size 6, timeout 100)\n    // TODO: Retransmit buf using HAL_UART_Transmit\n    return 0;\n}' }], testCases: [{ name: 'Echo', stdin: '', expectedOutput: '[UART TX] TEST' }] },
+
+                    // --- FreeRTOS POSIX (FREERTOS_SIM) ---
+                    { id: 'RTOS-01', topicId: 'FREERTOS_SIM', target: 'freertos', title: 'Hello Task', difficulty: 'Intermediate', points: 150, statement: 'Create one FreeRTOS task that prints "Hello from Task" and deletes itself. Start the scheduler. Main should not reach past vTaskStartScheduler().', acceptance: ['xTaskCreate used', 'vTaskStartScheduler called', 'Task prints message'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Hello from Task', files: [{ name: 'main.c', content: '#include "FreeRTOS.h"\n#include "task.h"\n#include <stdio.h>\n\nvoid vTask(void *pvParam) {\n    // TODO: printf "Hello from Task\\n"\n    vTaskDelete(NULL);\n}\n\nint main() {\n    xTaskCreate(vTask, "HelloTask", 256, NULL, 1, NULL);\n    vTaskStartScheduler();\n    return 0;\n}' }], testCases: [{ name: 'Hello', stdin: '', expectedOutput: 'Hello from Task' }] },
+
+                    { id: 'RTOS-02', topicId: 'FREERTOS_SIM', target: 'freertos', title: 'Two Tasks & Priority', difficulty: 'Intermediate', points: 150, statement: 'Create TaskA (priority 1) and TaskB (priority 2). Both print their name and delete. Higher priority task should run first. Expected: "TaskB\\nTaskA"', acceptance: ['Two tasks created with different priorities', 'Higher priority runs first'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'TaskB\nTaskA', files: [{ name: 'main.c', content: '#include "FreeRTOS.h"\n#include "task.h"\n#include <stdio.h>\n\nvoid vTaskA(void *p) { printf("TaskA\\n"); vTaskDelete(NULL); }\nvoid vTaskB(void *p) { printf("TaskB\\n"); vTaskDelete(NULL); }\n\nint main() {\n    // TODO: Create TaskA with priority 1, TaskB with priority 2\n    vTaskStartScheduler();\n    return 0;\n}' }], testCases: [{ name: 'Priority', stdin: '', expectedOutput: 'TaskB' }] },
+
+                    { id: 'RTOS-03', topicId: 'FREERTOS_SIM', target: 'freertos', title: 'Queue Send & Receive', difficulty: 'Advanced', points: 200, statement: 'Create a queue of size 5. Producer task sends integers 1..5. Consumer task receives them and prints "Got: <value>". Both tasks delete after done.', acceptance: ['xQueueCreate', 'xQueueSend/Receive', 'Consumer prints all 5 values'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Got: 1\nGot: 2\nGot: 3\nGot: 4\nGot: 5', files: [{ name: 'main.c', content: '#include "FreeRTOS.h"\n#include "task.h"\n#include "queue.h"\n#include <stdio.h>\n\nQueueHandle_t xQueue;\n\nvoid vProducer(void *p) {\n    for (int i = 1; i <= 5; i++)\n        xQueueSend(xQueue, &i, portMAX_DELAY);\n    vTaskDelete(NULL);\n}\n\nvoid vConsumer(void *p) {\n    // TODO: Receive 5 integers and printf("Got: %d\\n", val)\n    vTaskDelete(NULL);\n}\n\nint main() {\n    xQueue = xQueueCreate(5, sizeof(int));\n    xTaskCreate(vProducer, "Prod", 256, NULL, 1, NULL);\n    xTaskCreate(vConsumer, "Cons", 256, NULL, 1, NULL);\n    vTaskStartScheduler();\n    return 0;\n}' }], testCases: [{ name: 'Queue', stdin: '', expectedOutput: 'Got: 1' }] },
+
+                    { id: 'RTOS-04', topicId: 'FREERTOS_SIM', target: 'freertos', title: 'Binary Semaphore Sync', difficulty: 'Advanced', points: 200, statement: 'Task A acquires a binary semaphore, prints "A: working", then gives it. Task B waits for it and prints "B: done". Ensure ordering: A always before B.', acceptance: ['xSemaphoreCreateBinary', 'xSemaphoreTake/Give', 'Correct A→B order'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'A: working\nB: done', files: [{ name: 'main.c', content: '#include "FreeRTOS.h"\n#include "task.h"\n#include "semphr.h"\n#include <stdio.h>\n\nSemaphoreHandle_t xSem;\n\nvoid vTaskA(void *p) {\n    printf("A: working\\n"); fflush(stdout);\n    // TODO: Give the semaphore\n    vTaskDelete(NULL);\n}\n\nvoid vTaskB(void *p) {\n    // TODO: Take the semaphore (wait)\n    printf("B: done\\n"); fflush(stdout);\n    vTaskDelete(NULL);\n}\n\nint main() {\n    xSem = xSemaphoreCreateBinary();\n    xTaskCreate(vTaskA, "A", 256, NULL, 2, NULL);\n    xTaskCreate(vTaskB, "B", 256, NULL, 1, NULL);\n    vTaskStartScheduler();\n    return 0;\n}' }], testCases: [{ name: 'Sem', stdin: '', expectedOutput: 'A: working\nB: done' }] },
+
+                    { id: 'RTOS-05', topicId: 'FREERTOS_SIM', target: 'freertos', title: 'Counting Semaphore Resource Pool', difficulty: 'Advanced', points: 200, statement: 'Create a counting semaphore with max=3, initial=3 (representing 3 resources). 3 worker tasks each acquire the semaphore, print "Worker N: acquired", then release it.', acceptance: ['xSemaphoreCreateCounting', 'Take in each worker', 'Give after use'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Worker', files: [{ name: 'main.c', content: '#include "FreeRTOS.h"\n#include "task.h"\n#include "semphr.h"\n#include <stdio.h>\n\nSemaphoreHandle_t xPool;\n\nvoid vWorker(void *pvId) {\n    int id = (int)(long)pvId;\n    xSemaphoreTake(xPool, portMAX_DELAY);\n    printf("Worker %d: acquired\\n", id); fflush(stdout);\n    xSemaphoreGive(xPool);\n    vTaskDelete(NULL);\n}\n\nint main() {\n    xPool = xSemaphoreCreateCounting(3, 3);\n    for (int i = 1; i <= 3; i++)\n        xTaskCreate(vWorker, "W", 256, (void*)(long)i, 1, NULL);\n    vTaskStartScheduler();\n    return 0;\n}' }], testCases: [{ name: 'Count sem', stdin: '', expectedOutput: 'Worker' }] },
+
+                    { id: 'RTOS-06', topicId: 'FREERTOS_SIM', target: 'freertos', title: 'Mutex Protected Counter', difficulty: 'Advanced', points: 250, statement: 'Create a mutex and 5 tasks. Each task takes the mutex, increments a shared counter, releases the mutex. After all tasks run, print "Counter: 5".', acceptance: ['xSemaphoreCreateMutex', 'Take/Give around counter increment', 'Final value=5'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Counter: 5', files: [{ name: 'main.c', content: '#include "FreeRTOS.h"\n#include "task.h"\n#include "semphr.h"\n#include <stdio.h>\n\nSemaphoreHandle_t xMutex;\nvolatile int counter = 0;\nvoid vTask(void *p) {\n    xSemaphoreTake(xMutex, portMAX_DELAY);\n    counter++;\n    xSemaphoreGive(xMutex);\n    vTaskDelete(NULL);\n}\n// Watcher task waits and prints\nvoid vWatcher(void *p) {\n    vTaskDelay(pdMS_TO_TICKS(50));\n    printf("Counter: %d\\n", counter); fflush(stdout);\n    vTaskDelete(NULL);\n}\nint main() {\n    xMutex = xSemaphoreCreateMutex();\n    for (int i = 0; i < 5; i++) xTaskCreate(vTask, "T", 256, NULL, 1, NULL);\n    xTaskCreate(vWatcher, "W", 256, NULL, 1, NULL);\n    vTaskStartScheduler();\n    return 0;\n}' }], testCases: [{ name: 'Mutex', stdin: '', expectedOutput: 'Counter: 5' }] },
+
+                    { id: 'RTOS-07', topicId: 'FREERTOS_SIM', target: 'freertos', title: 'Event Group Rendezvous', difficulty: 'Advanced', points: 250, statement: 'Use an event group. Task A sets bit 0, Task B sets bit 1. Task C waits for both bits before printing "Go!". This implements a multi-task rendezvous.', acceptance: ['xEventGroupCreate', 'xEventGroupSetBits/WaitBits', '"Go!" printed after both bits set'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Go!', files: [{ name: 'main.c', content: '#include "FreeRTOS.h"\n#include "task.h"\n#include "event_groups.h"\n#include <stdio.h>\n\n#define BIT_A (1<<0)\n#define BIT_B (1<<1)\n\nEventGroupHandle_t xEG;\n\nvoid vA(void *p) { xEventGroupSetBits(xEG, BIT_A); vTaskDelete(NULL); }\nvoid vB(void *p) { xEventGroupSetBits(xEG, BIT_B); vTaskDelete(NULL); }\nvoid vC(void *p) {\n    // TODO: WaitBits for (BIT_A|BIT_B), all bits, clear on exit\n    printf("Go!\\n"); fflush(stdout);\n    vTaskDelete(NULL);\n}\n\nint main() {\n    xEG = xEventGroupCreate();\n    xTaskCreate(vA, "A", 256, NULL, 1, NULL);\n    xTaskCreate(vB, "B", 256, NULL, 1, NULL);\n    xTaskCreate(vC, "C", 256, NULL, 1, NULL);\n    vTaskStartScheduler();\n    return 0;\n}' }], testCases: [{ name: 'Event', stdin: '', expectedOutput: 'Go!' }] },
+
+                    { id: 'RTOS-08', topicId: 'FREERTOS_SIM', target: 'freertos', title: 'Software Timer Callback', difficulty: 'Advanced', points: 200, statement: 'Create a one-shot software timer with a 10ms period. In its callback, print "Timer fired". Start it. The timer should fire and the program exits after the scheduler runs briefly.', acceptance: ['xTimerCreate with pdFALSE (one-shot)', 'xTimerStart called', 'Callback prints message'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Timer fired', files: [{ name: 'main.c', content: '#include "FreeRTOS.h"\n#include "task.h"\n#include "timers.h"\n#include <stdio.h>\n\nvoid vCallback(TimerHandle_t xTimer) {\n    printf("Timer fired\\n"); fflush(stdout);\n}\n\nvoid vKiller(void *p) {\n    vTaskDelay(pdMS_TO_TICKS(100));\n    vTaskEndScheduler();\n}\n\nint main() {\n    TimerHandle_t xTimer = xTimerCreate("T", pdMS_TO_TICKS(10), pdFALSE, 0, vCallback);\n    xTimerStart(xTimer, 0);\n    xTaskCreate(vKiller, "K", 256, NULL, 1, NULL);\n    vTaskStartScheduler();\n    return 0;\n}' }], testCases: [{ name: 'Timer', stdin: '', expectedOutput: 'Timer fired' }] },
+
+                    { id: 'RTOS-09', topicId: 'FREERTOS_SIM', target: 'freertos', title: 'Task Notification as Semaphore', difficulty: 'Advanced', points: 200, statement: 'Use xTaskNotifyGive/ulTaskNotifyTake instead of a semaphore. Task A notifies Task B. Task B waits and prints "Notified". Cleaner than semphr for simple signals.', acceptance: ['xTaskNotifyGive used', 'ulTaskNotifyTake used', '"Notified" printed'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Notified', files: [{ name: 'main.c', content: '#include "FreeRTOS.h"\n#include "task.h"\n#include <stdio.h>\n\nTaskHandle_t xTaskBHandle;\n\nvoid vTaskA(void *p) {\n    vTaskDelay(pdMS_TO_TICKS(10));\n    xTaskNotifyGive(xTaskBHandle);\n    vTaskDelete(NULL);\n}\n\nvoid vTaskB(void *p) {\n    ulTaskNotifyTake(pdTRUE, portMAX_DELAY);\n    printf("Notified\\n"); fflush(stdout);\n    vTaskDelete(NULL);\n}\n\nint main() {\n    xTaskCreate(vTaskB, "B", 256, NULL, 1, &xTaskBHandle);\n    xTaskCreate(vTaskA, "A", 256, NULL, 2, NULL);\n    vTaskStartScheduler();\n    return 0;\n}' }], testCases: [{ name: 'Notify', stdin: '', expectedOutput: 'Notified' }] },
+
+                    { id: 'RTOS-10', topicId: 'FREERTOS_SIM', target: 'freertos', title: 'vTaskDelayUntil Periodic Task', difficulty: 'Advanced', points: 250, statement: 'Implement a periodic task that fires every 20ms using vTaskDelayUntil. Print "Tick <n>" for N iterations (N from stdin). This is the correct RTOS pattern for hard deadline tasks.', acceptance: ['vTaskDelayUntil used', 'Correct period', 'N ticks printed'], deliverables: ['main.c'], inputSpec: 'Integer N', outputSpec: 'N lines of Tick 0..N-1', files: [{ name: 'main.c', content: '#include "FreeRTOS.h"\n#include "task.h"\n#include <stdio.h>\n#include <stdlib.h>\n\nint g_n;\n\nvoid vPeriodicTask(void *p) {\n    TickType_t xLastWake = xTaskGetTickCount();\n    for (int i = 0; i < g_n; i++) {\n        vTaskDelayUntil(&xLastWake, pdMS_TO_TICKS(20));\n        printf("Tick %d\\n", i); fflush(stdout);\n    }\n    vTaskEndScheduler();\n}\n\nint main() {\n    scanf("%d", &g_n);\n    xTaskCreate(vPeriodicTask, "P", 256, NULL, 1, NULL);\n    vTaskStartScheduler();\n    return 0;\n}' }], testCases: [{ name: '3 ticks', stdin: '3', expectedOutput: 'Tick 0' }] },
+
                     // --- True Emulation (RP2040) ---
+
                     { id: 'RP2040-01', topicId: 'MCU_SIM_RP2040', target: 'rp2040', title: 'Raspberry Pi Pico Blink (True Hardware Emulation)', difficulty: 'Advanced', points: 1000, statement: 'Welcome to the Core Magic layer! Unlike other projects on this platform, this code is NOT run as a normal PC program. It is cross-compiled to an ARM `.hex` firmware byte array. Complete the logic to turn on GPIO 25 (the Pico onboard LED).', acceptance: ['Writes 1 to GPIO 25', 'Executes via rp2040js emulator'], deliverables: ['main.c'], inputSpec: 'Real RP2040 CPU simulator', outputSpec: 'LED state updates', files: [{ name: 'main.c', content: '#include <stdint.h>\n\n// --- Bare Metal RP2040 GPIO --- \n// SIO Base Address\n#define SIO_BASE 0xd0000000\n// GPIO Output Value register (direct write)\n#define SIO_GPIO_OUT_OFFSET 0x010\n\nint main() {\n    volatile uint32_t *gpio_out = (volatile uint32_t *)(SIO_BASE + SIO_GPIO_OUT_OFFSET);\n    \n    // TODO: Write a 1 to bit 25 to turn on the onboard LED\n    // This will directly trigger the hardware simulator!\n    *gpio_out = 0;\n\n    while(1) {\n       // Loop forever (standard embedded practice)\n    }\n    return 0;\n}' }], testCases: [] },
 
                     // --- Microcontroller Simulations (MCU_SIM) ---
@@ -1974,40 +2084,140 @@
 
 
                 init() {
-                    const savedSession = localStorage.getItem('virtual_lab_session');
-                    if (savedSession) {
+                    // Load platform config first (topic filter, branding)
+                    fetch('/api/config')
+                        .then(r => r.json())
+                        .then(cfg => {
+                            this.topicFilter = cfg.topicFilter || [];
+                            if (cfg.platformTitle) this.platformTitle = cfg.platformTitle;
+                            if (cfg.platformSubtitle) this.platformSubtitle = cfg.platformSubtitle;
+                        })
+                        .catch(() => { }); // Silently ignore if backend not reachable yet
+
+                    const token = localStorage.getItem('vlab_token');
+
+                    if (token) {
                         try {
-                            const session = JSON.parse(savedSession);
-                            this.user = { ...this.user, ...session.user };
-                            this.isLoggedIn = session.isLoggedIn;
-                            this.currentView = session.currentView || 'dashboard';
-                            this.adminTab = session.adminTab || 'overview';
+                            const payload = JSON.parse(atob(token.split('.')[1]));
+                            if (payload.exp * 1000 > Date.now()) {
+                                this.user = { name: payload.name, email: payload.email, role: payload.role };
+                                this.isLoggedIn = true;
 
-                            if (session.selectedTopicId) {
-                                this.selectedTopic = this.topics.find(t => t.id === session.selectedTopicId) || this.topics[0];
-                            } else {
-                                this.selectedTopic = this.topics[0];
-                            }
+                                // Fetch real session state from server
+                                fetch('/api/auth/me', { headers: this._authHeaders() })
+                                    .then(res => res.json())
+                                    .then(data => {
+                                        if (data.session) {
+                                            const s = data.session;
+                                            this.currentView = s.currentView || 'dashboard';
+                                            this.adminTab = s.adminTab || 'overview';
+                                            if (s.selectedTopicId)
+                                                this.selectedTopic = this.topics.find(t => t.id === s.selectedTopicId) || this.topics[0];
+                                            else this.selectedTopic = this.topics[0];
 
-                            if (session.activeProjectId) {
-                                const proj = this.projects.find(p => p.id === session.activeProjectId);
-                                if (proj) this.selectProject(proj);
-                                else this.activeProject = this.projects[0];
+                                            if (s.activeProjectId) {
+                                                const proj = this.projects.find(p => p.id === s.activeProjectId);
+                                                if (proj) {
+                                                    this.activeProject = proj;
+                                                    setTimeout(() => { if (this.selectProject) this.selectProject(proj); }, 50);
+                                                } else this.activeProject = this.projects[0];
+                                            } else {
+                                                this.activeProject = this.projects[0];
+                                            }
+                                        } else {
+                                            this.resetToDefaults();
+                                        }
+
+                                        this.saveSession();
+                                        this._loadServerProgress();
+                                    })
+                                    .catch(() => {
+                                        this.resetToDefaults();
+                                    });
+
                             } else {
-                                this.activeProject = this.projects[0];
+                                this.logout();
                             }
-                        } catch (e) {
-                            console.error('Failed to restore session:', e);
-                            this.resetToDefaults();
-                        }
+                        } catch { this.resetToDefaults(); }
                     } else {
                         this.resetToDefaults();
                     }
 
-                    // Watchers for persistence
+                    // Watchers for UI-state persistence
                     this.$watch('currentView', () => this.saveSession());
                     this.$watch('adminTab', () => this.saveSession());
                     this.$watch('activeFileIdx', () => this.saveSession());
+
+                    // Proctoring / Anti-Cheat
+                    document.addEventListener('contextmenu', (e) => {
+                        if (this.isLoggedIn && this.user.role === 'candidate') {
+                            e.preventDefault();
+                            this.registerViolation('Right-click attempt blocked');
+                        }
+                    });
+                    document.addEventListener('visibilitychange', () => {
+                        if (document.hidden && this.isLoggedIn && this.user.role === 'candidate') {
+                            this.registerViolation('Tab switch / window unfocused');
+                        }
+                    });
+                    document.addEventListener('keydown', (e) => {
+                        if (!this.isLoggedIn || this.user.role !== 'candidate') return;
+                        if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.key === 'u')) {
+                            e.preventDefault();
+                            this.registerViolation('DevTools/Source access shortcut blocked');
+                        }
+                        // Block copy, cut, paste
+                        if (e.ctrlKey && (e.key === 'c' || e.key === 'C' || e.key === 'x' || e.key === 'X' || e.key === 'v' || e.key === 'V')) {
+                            e.preventDefault();
+                            this.registerViolation('Copy/Paste/Cut attempt blocked');
+                        }
+                    });
+                    // Also block copy/paste via clipboard events
+                    document.addEventListener('copy', (e) => {
+                        if (this.isLoggedIn && this.user.role === 'candidate') {
+                            e.preventDefault();
+                            this.registerViolation('Copy attempt blocked');
+                        }
+                    });
+                    document.addEventListener('cut', (e) => {
+                        if (this.isLoggedIn && this.user.role === 'candidate') {
+                            e.preventDefault();
+                            this.registerViolation('Cut attempt blocked');
+                        }
+                    });
+                    document.addEventListener('paste', (e) => {
+                        if (this.isLoggedIn && this.user.role === 'candidate') {
+                            e.preventDefault();
+                            this.registerViolation('Paste attempt blocked');
+                        }
+                    });
+                },
+
+                _getToken() { return localStorage.getItem('vlab_token'); },
+
+                _authHeaders() {
+                    const token = this._getToken();
+                    return token ? { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token } : { 'Content-Type': 'application/json' };
+                },
+
+                async _loadServerProgress() {
+                    try {
+                        const r = await fetch('/api/progress', { headers: this._authHeaders() });
+                        if (r.ok) {
+                            const data = await r.json();
+                            this.solvedProjectIds = data.solvedProjectIds || [];
+                        }
+                    } catch { } // Fallback to localStorage silently
+                },
+
+                _saveProgressToServer(projectId, files, solved) {
+                    // Fire-and-forget: save progress in background without blocking UI
+                    if (!this.isLoggedIn || !this._getToken()) return;
+                    fetch('/api/progress/save', {
+                        method: 'POST',
+                        headers: this._authHeaders(),
+                        body: JSON.stringify({ projectId, files, solved })
+                    }).catch(() => { }); // Silently ignore network errors
                 },
 
                 resetToDefaults() {
@@ -2018,27 +2228,33 @@
 
                 saveSession() {
                     if (!this.isLoggedIn) return;
+                    // Only save non-sensitive UI state (role/email secured in JWT)
                     const session = {
-                        user: this.user,
-                        isLoggedIn: this.isLoggedIn,
                         currentView: this.currentView,
                         adminTab: this.adminTab,
                         selectedTopicId: this.selectedTopic?.id,
                         activeProjectId: this.activeProject?.id
                     };
                     localStorage.setItem('virtual_lab_session', JSON.stringify(session));
+
+                    // Sync session to backend if candidate
+                    if (this.user.role === 'candidate' && this._getToken()) {
+                        fetch('/api/auth/session', {
+                            method: 'POST',
+                            headers: this._authHeaders(),
+                            body: JSON.stringify({ session })
+                        }).catch(() => { });
+                    }
                 },
 
                 logout() {
-                    if (confirm('Are you sure you want to logout?')) {
-                        localStorage.removeItem('virtual_lab_session');
-                        this.isLoggedIn = false;
-                        this.user = { name: '', email: '', role: 'candidate' };
-                        this.currentView = 'dashboard';
-                        this.authStep = 'role';
-                        // Force a clean state
-                        window.location.reload();
-                    }
+                    localStorage.removeItem('vlab_token');
+                    localStorage.removeItem('virtual_lab_session');
+                    this.isLoggedIn = false;
+                    this.user = { name: '', email: '', role: 'candidate' };
+                    this.currentView = 'dashboard';
+                    this.authStep = 'role';
+                    window.location.reload();
                 },
 
                 validateEmail() {
@@ -2049,33 +2265,103 @@
                     }
                 },
 
-                generateCode() {
-                    if (!this.user.name || !this.user.email) return;
-                    this.generatedCode = Math.floor(100000 + Math.random() * 900000).toString();
-                    this.authStep = 'code';
-                },
-
-                verifyAndLogin() {
-                    if (this.enteredCode === this.generatedCode) {
-                        this.user.role = 'candidate';
-                        this.currentView = 'dashboard';
-                        this.isLoggedIn = true;
-                        this.saveSession();
-                    } else {
-                        alert('Invalid Access Code');
+                async generateCode() {
+                    if (this.authLoading) return;
+                    this.authLoading = true;
+                    try {
+                        const r = await fetch('/api/auth/register', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ name: this.user.name, email: this.user.email })
+                        });
+                        const data = await r.json();
+                        if (!r.ok || data.error) {
+                            alert(data.error || 'Registration failed.');
+                        } else {
+                            this.generatedCode = data.otp || '********'; // Fallback if not returned
+                            this.authStep = 'code';
+                        }
+                    } catch (e) {
+                        alert('Network error. Is the server running?');
+                    } finally {
+                        this.authLoading = false;
                     }
                 },
 
-                verifyAdmin() {
-                    if (this.adminCreds.id === 'admin' && this.adminCreds.pass === 'admin123') {
-                        this.user.name = 'Administrator';
-                        this.user.role = 'admin';
-                        this.currentView = 'admin_dashboard';
-                        this.adminTab = 'overview';
-                        this.isLoggedIn = true;
-                        this.saveSession();
-                    } else {
-                        alert("Invalid Admin Credentials.");
+                async verifyAndLogin() {
+                    if (!this.enteredCode || this.authLoading) return;
+                    this.authLoading = true;
+                    try {
+                        const r = await fetch('/api/auth/verify', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email: this.user.email, otp: this.enteredCode })
+                        });
+                        const data = await r.json();
+                        if (!r.ok || data.error) {
+                            alert(data.error || 'Invalid Access Code');
+                        } else {
+                            localStorage.setItem('vlab_token', data.token);
+                            this.user = { name: data.user.name, email: data.user.email, role: 'candidate' };
+                            this.isLoggedIn = true;
+
+                            // Resume where they left off if session exists in DB
+                            if (data.session) {
+                                const s = data.session;
+                                this.currentView = s.currentView || 'dashboard';
+                                this.adminTab = s.adminTab || 'overview';
+                                if (s.selectedTopicId)
+                                    this.selectedTopic = this.topics.find(t => t.id === s.selectedTopicId) || this.topics[0];
+                                else this.selectedTopic = this.topics[0];
+                                if (s.activeProjectId) {
+                                    const proj = this.projects.find(p => p.id === s.activeProjectId);
+                                    if (proj) {
+                                        this.activeProject = proj;
+                                        // Wait until DOM is ready, then load files smoothly
+                                        setTimeout(() => { this.selectProject(proj); }, 50);
+                                    } else this.activeProject = this.projects[0];
+                                } else {
+                                    this.activeProject = this.projects[0];
+                                }
+                            } else {
+                                this.currentView = 'dashboard';
+                            }
+
+                            // Save the active state locally so it's not lost on refresh
+                            this.saveSession();
+                            this._loadServerProgress();
+                        }
+                    } catch (e) {
+                        alert('Network error. Make sure the server is running.');
+                    } finally {
+                        this.authLoading = false;
+                    }
+                },
+
+                async verifyAdmin() {
+                    if (this.authLoading) return;
+                    this.authLoading = true;
+                    try {
+                        const r = await fetch('/api/auth/admin-login', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ email: this.adminCreds.email, pass: this.adminCreds.pass })
+                        });
+                        const data = await r.json();
+                        if (!r.ok || data.error) {
+                            alert(data.error || 'Invalid Admin Credentials.');
+                        } else {
+                            localStorage.setItem('vlab_token', data.token);
+                            this.user = { name: 'Administrator', email: this.adminCreds.email, role: 'admin' };
+                            this.currentView = 'admin_dashboard';
+                            this.adminTab = 'overview';
+                            this.isLoggedIn = true;
+                            this.saveSession();
+                        }
+                    } catch (e) {
+                        alert('Network error.');
+                    } finally {
+                        this.authLoading = false;
                     }
                 },
 
@@ -2085,35 +2371,58 @@
                     this.saveSession();
                 },
 
-                selectProject(project) {
+                async selectProject(project) {
                     this.activeProject = project;
-                    // Load saved code from localStorage if available, otherwise use defaults
-                    const saved = localStorage.getItem('code_' + project.id);
-                    if (saved) {
-                        try {
-                            this.activeFiles = JSON.parse(saved);
-                        } catch (e) {
-                            this.activeFiles = JSON.parse(JSON.stringify(project.files || []));
-                        }
-                    } else {
-                        this.activeFiles = JSON.parse(JSON.stringify(project.files || []));
-                    }
                     this.activeFileIdx = 0;
                     this.wsTab = 'editor';
                     this.testResults = [];
                     this.buildReport = null;
                     this.aiFeedback = null;
+
+                    // Try loading from server first, fallback to localStorage, then defaults
+                    let loaded = false;
+                    if (this.isLoggedIn && this._getToken()) {
+                        try {
+                            const r = await fetch('/api/progress/' + encodeURIComponent(project.id), {
+                                headers: this._authHeaders()
+                            });
+                            if (r.ok) {
+                                const data = await r.json();
+                                if (data.found && data.files && data.files.length > 0) {
+                                    this.activeFiles = data.files;
+                                    loaded = true;
+                                }
+                            }
+                        } catch { } // Fallback silently
+                    }
+                    if (!loaded) {
+                        const saved = localStorage.getItem('code_' + project.id);
+                        if (saved) {
+                            try { this.activeFiles = JSON.parse(saved); loaded = true; } catch { }
+                        }
+                    }
+                    if (!loaded) {
+                        this.activeFiles = JSON.parse(JSON.stringify(project.files || []));
+                    }
                     this.saveSession();
                 },
 
                 get filteredProjects() {
-                    return this.projects.filter(p => p.topicId === this.selectedTopic.id).map(p => {
+                    return this.projects.filter(p => {
+                        if (this.topicFilter.length && !this.topicFilter.includes(p.topicId)) return false;
+                        return p.topicId === this.selectedTopic.id;
+                    }).map(p => {
                         return { ...p, solved: this.solvedProjectIds.includes(p.id) };
                     });
                 },
 
+                get allowedProjects() {
+                    if (!this.topicFilter.length) return this.projects;
+                    return this.projects.filter(p => this.topicFilter.includes(p.topicId));
+                },
+
                 get solvedCount() { return this.solvedProjectIds.length; },
-                get totalProgress() { return Math.round((this.solvedCount / this.projects.length) * 100) || 0; },
+                get totalProgress() { return Math.round((this.solvedCount / (this.allowedProjects.length || this.projects.length)) * 100) || 0; },
                 get totalPointsEarned() {
                     return this.projects.filter(p => this.solvedProjectIds.includes(p.id))
                         .reduce((sum, p) => sum + p.points, 0);
@@ -2427,10 +2736,11 @@
                             if (!this.solvedProjectIds.includes(this.activeProject.id)) {
                                 this.solvedProjectIds.push(this.activeProject.id);
                             }
-                            // Persist solved IDs
+                            // Persist solved IDs to localStorage (fallback)
                             localStorage.setItem('solvedProjectIds', JSON.stringify(this.solvedProjectIds));
-                            // Save code to localStorage
+                            // Save code to server + localStorage
                             localStorage.setItem('code_' + this.activeProject.id, JSON.stringify(this.activeFiles));
+                            this._saveProgressToServer(this.activeProject.id, this.activeFiles, true);
                             // Auto-download solution file
                             this.downloadSolution();
                             // Show success toast
@@ -2441,6 +2751,7 @@
                         } else {
                             // Still save code progress even on failure
                             localStorage.setItem('code_' + this.activeProject.id, JSON.stringify(this.activeFiles));
+                            this._saveProgressToServer(this.activeProject.id, this.activeFiles, false);
                         }
                     }
 
@@ -2556,7 +2867,7 @@
                         const topic = this.topics.find(t => t.id === this.activeProject.topicId);
                         const response = await fetch('/api/submit', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: this._authHeaders(),
                             body: JSON.stringify({
                                 candidateName: this.user.name,
                                 email: this.user.email,
@@ -2594,7 +2905,7 @@
                     try {
                         const response = await fetch('/api/my-submissions', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: this._authHeaders(),
                             body: JSON.stringify({ email: this.user.email })
                         });
                         const data = await response.json();
@@ -2610,7 +2921,7 @@
                         let url = '/api/submissions?';
                         if (this.adminDayFilter) url += 'day=' + this.adminDayFilter + '&';
                         if (this.adminSubFilter && this.adminSubFilter !== 'all') url += 'status=' + this.adminSubFilter;
-                        const response = await fetch(url);
+                        const response = await fetch(url, { headers: this._authHeaders() });
                         this.allSubmissions = await response.json();
                     } catch (e) {
                         console.error('Failed to load submissions:', e);
@@ -2631,7 +2942,9 @@
                     }
                     // Fetch full submission detail (with code)
                     try {
-                        const response = await fetch('/api/submission/' + sub.id);
+                        const response = await fetch('/api/submission/' + sub.id, {
+                            headers: this._authHeaders()
+                        });
                         this.gradingDetail = await response.json();
                     } catch (e) {
                         console.error('Failed to load submission detail:', e);
@@ -2644,7 +2957,7 @@
                     try {
                         const response = await fetch('/api/grade', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: this._authHeaders(),
                             body: JSON.stringify({
                                 submissionId: this.gradingSubmission.id,
                                 scores: this.gradeScores,
@@ -2717,51 +3030,24 @@
                 },
 
                 // ——— Anti-Cheat / Proctoring ———
-                init() {
-                    // 1. Disable right-click context menu
-                    document.addEventListener('contextmenu', (e) => {
-                        e.preventDefault();
-                        this.registerViolation('Right-click attempt blocked');
-                    });
 
-                    // 2. Tab-switch / visibility change detection
-                    document.addEventListener('visibilitychange', () => {
-                        if (document.hidden && this.isLoggedIn) {
-                            this.registerViolation('Tab switch / window unfocused');
-                        }
-                    });
-
-                    // 3. Block common keyboard shortcuts used for cheating
-                    document.addEventListener('keydown', (e) => {
-                        // Block F12 (Dev Tools)
-                        if (e.key === 'F12') {
-                            e.preventDefault();
-                            this.registerViolation('F12 (DevTools) blocked');
-                        }
-                        // Block Ctrl+Shift+I (Dev Tools)
-                        if (e.ctrlKey && e.shiftKey && e.key === 'I') {
-                            e.preventDefault();
-                            this.registerViolation('Ctrl+Shift+I (DevTools) blocked');
-                        }
-                        // Block Ctrl+U (View Source)
-                        if (e.ctrlKey && e.key === 'u') {
-                            e.preventDefault();
-                            this.registerViolation('Ctrl+U (View Source) blocked');
-                        }
-                    });
-                },
 
                 registerViolation(reason) {
-                    if (!this.isLoggedIn) return;
+                    if (!this.isLoggedIn || this.user.role === 'admin') return;
                     this.violationCount++;
                     this.violationLog.push({
                         time: new Date().toLocaleTimeString(),
                         reason: reason,
                         count: this.violationCount
                     });
-                    this.violationWarning = true;
-                    // auto-dismiss after 3 seconds
-                    setTimeout(() => { this.violationWarning = false; }, 3000);
+                    // Show critical warning at 10+ violations
+                    if (this.violationCount >= 10) {
+                        this.criticalViolationWarning = true;
+                    } else {
+                        this.violationWarning = true;
+                        // auto-dismiss after 3 seconds
+                        setTimeout(() => { this.violationWarning = false; }, 3000);
+                    }
                 }
             }
         }

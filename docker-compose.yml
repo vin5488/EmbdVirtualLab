@@ -5,12 +5,16 @@ services:
     build: .
     ports:
       - "8080:8080"
+    env_file:
+      - .env
     environment:
       - NODE_ENV=production
       - WORKERS=4
       - MAX_COMPILES=12
+      - DB_PATH=/app/data/virtuallab.db
     volumes:
-      - submissions_data:/app/data
+      # Persist SQLite database across container restarts
+      - db_data:/app/data
     deploy:
       resources:
         limits:
@@ -25,7 +29,8 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 15s
 
 volumes:
-  submissions_data:
+  db_data:
+    driver: local

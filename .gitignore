@@ -4,6 +4,15 @@ dist/
 .npm
 *.log
 
+# Environment — NEVER commit secrets
+.env
+clients/**/.env
+
+# SQLite databases
+data/
+clients/**/data/
+
+
 # Docker
 .docker/
 
