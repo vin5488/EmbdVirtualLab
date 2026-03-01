@@ -86,17 +86,20 @@ SECTIONS {
     .bss : {
         . = ALIGN(4);
         _sbss = .;
+        __bss_start__ = .;
         *(.bss)
         *(.bss*)
         *(COMMON)
         . = ALIGN(4);
         _ebss = .;
+        __bss_end__ = .;
     } >RAM
 
     /* Heap and stack in remaining RAM */
     ._user_heap_stack : {
         . = ALIGN(8);
         PROVIDE(end = .);
+        PROVIDE(__end__ = .);
         . = . + 0x400;  /* Heap: 1KB */
         . = . + 0x800;  /* Stack: 2KB */
         . = ALIGN(8);
