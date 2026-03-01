@@ -2149,6 +2149,7 @@
                     this.$watch('activeFileIdx', () => this.saveSession());
 
                     // Proctoring / Anti-Cheat
+                    /* TEMPORARILY DISABLED FOR TESTING
                     document.addEventListener('contextmenu', (e) => {
                         if (this.isLoggedIn && this.user.role === 'candidate') {
                             e.preventDefault();
@@ -2191,6 +2192,7 @@
                             this.registerViolation('Paste attempt blocked');
                         }
                     });
+                    */
                 },
 
                 _getToken() { return localStorage.getItem('vlab_token'); },
