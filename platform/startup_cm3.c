@@ -33,14 +33,19 @@ void Reset_Handler(void) {
   /* Call candidate's main */
   main();
 
-  /* Hang if main returns */
+  /* Trigger semihosting exit via newlib */
+  extern void _exit(int status);
+  _exit(0);
+
+  /* Fallback hang if exit fails */
   while (1) {
   }
 }
 
 void Default_Handler(void) {
-  while (1) {
-  }
+  /* Exit with error code 1 on CPU faults */
+  extern void _exit(int status);
+  _exit(1);
 }
 
 /* Minimal ISR aliases */
