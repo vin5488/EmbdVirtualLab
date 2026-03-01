@@ -30,6 +30,10 @@ void Reset_Handler(void) {
   /* Call static constructors */
   __libc_init_array();
 
+  /* Initialize semihosting stdout/stdin/stderr monitor handles */
+  extern void initialise_monitor_handles(void);
+  initialise_monitor_handles();
+
   /* Call candidate's main */
   main();
 
