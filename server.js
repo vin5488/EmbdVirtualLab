@@ -1000,7 +1000,7 @@ app.use((req, res, next) => {
                 res.send(d2);
             });
         }
-        if (data.length < 5 * 1024 * 1024) staticCache[filePath] = { data, contentType };
+        if (extname === '.html' && data.length < 5 * 1024 * 1024) staticCache[filePath] = { data, contentType };
         res.setHeader('Content-Type', contentType);
         res.setHeader('Cache-Control', 'public, max-age=300');
         res.send(data);

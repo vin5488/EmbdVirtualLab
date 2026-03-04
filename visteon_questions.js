@@ -76,9 +76,7 @@ window.VISTEON_WHITELIST = [
 window.isVisteonUser = function (email) {
     if (!email) return false;
     const cleanEmail = email.trim().toLowerCase();
-    const isWhitelisted = window.VISTEON_WHITELIST.some(e => e.trim().toLowerCase() === cleanEmail);
-    const hasVisteonDomain = cleanEmail.endsWith('@visteon.com');
-    return isWhitelisted || hasVisteonDomain;
+    return window.VISTEON_WHITELIST.some(e => e.trim().toLowerCase() === cleanEmail);
 };
 
 window.VISTEON_PROJECTS = [
