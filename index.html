@@ -1727,6 +1727,67 @@
                 isSubmitting: false,
                 mySubmissions: [],
                 allSubmissions: [],
+
+                init() {
+                    // Load projects from external script if available
+                    if (window.VISTEON_PROJECTS) {
+                        this.projects.unshift(...window.VISTEON_PROJECTS);
+                    }
+
+                    // Restore session from localStorage first for instant UI responsiveness
+                    const saved = localStorage.getItem('virtual_lab_session');
+                    if (saved) {
+                        try {
+                            const s = JSON.parse(saved);
+                            this.currentView = s.currentView || 'dashboard';
+                            this.adminTab = s.adminTab || 'overview';
+                            if (s.selectedTopicId)
+                                this.selectedTopic = this.topics.find(t => t.id === s.selectedTopicId) || this.topics[0];
+                            if (s.activeProjectId)
+                                this.activeProject = this.projects.find(p => p.id === s.activeProjectId) || this.projects[0];
+                        } catch (e) { }
+                    }
+
+                    // Authenticate and sync with server
+                    const token = localStorage.getItem('vlab_token');
+                    if (token) {
+                        fetch('/api/auth/me', {
+                            headers: { 'Authorization': 'Bearer ' + token }
+                        })
+                            .then(r => r.json())
+                            .then(data => {
+                                if (data.user) {
+                                    this.user = data.user;
+                                    this.isLoggedIn = true;
+                                    if (data.session) {
+                                        // Server session takes precedence
+                                        const s = data.session;
+                                        if (s.selectedTopicId)
+                                            this.selectedTopic = this.topics.find(t => t.id === s.selectedTopicId) || this.topics[0];
+                                        if (s.activeProjectId) {
+                                            const p = this.projects.find(pj => pj.id === s.activeProjectId);
+                                            if (p) {
+                                                this.activeProject = p;
+                                                this.selectProject(p);
+                                            }
+                                        }
+                                    }
+
+                                    // Auto-select Visteon if whitelisted and no selection
+                                    const isVisteon = typeof window.isVisteonUser === 'function' && window.isVisteonUser(this.user.email);
+                                    if (isVisteon && (!this.selectedTopic || this.selectedTopic.id !== 'VISTEON_C')) {
+                                        this.selectedTopic = this.topics.find(t => t.id === 'VISTEON_C');
+                                    }
+
+                                    this._loadServerProgress();
+                                } else {
+                                    this.logout();
+                                }
+                            })
+                            .catch(() => { });
+                    }
+                },
+
                 // Admin Dashboard State
                 adminTab: 'overview',
                 adminSearch: '',
@@ -1773,7 +1834,6 @@
                 ],
 
                 projects: [
-                    ...(window.VISTEON_PROJECTS || []),
                     // --- Linux System Programming (LINUX_SYS) ---
                     { id: 'LINUX-01', topicId: 'LINUX_SYS', title: 'Hello from fork()', difficulty: 'Intermediate', points: 100, statement: 'Use fork() to create a child process. The parent should print "Parent: PID <ppid>" and the child should print "Child: PID <cpid>". The parent must wait for the child to finish.\nNote: PIDs change each run — print the actual PID values using getpid().', acceptance: ['fork() used', 'Parent waits with wait()', 'Both messages printed'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Two lines: Parent and Child PID messages (exact PIDs differ)', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <unistd.h>\n#include <sys/wait.h>\n\nint main() {\n    pid_t pid = fork();\n    if (pid < 0) {\n        perror("fork failed");\n        return 1;\n    }\n    // TODO:\n    // if child (pid == 0): print "Child: PID <pid>"\n    // if parent (pid > 0): wait for child, then print "Parent: PID <ppid>"\n    return 0;\n}' }], testCases: [{ name: 'Output Check', stdin: '', expectedOutput: 'Child:' }] },
 
@@ -2455,20 +2515,25 @@
                 },
 
                 get allowedTopics() {
-                    const visteonEmails = ["achandel@visteon.com", "ppranee3@visteon.com", "tnair@visteon.com", "hreddy2@visteon.com", "rraman4@visteon.com", "mayan@visteon.com", "skrishak@visteon.com", "msanthos@visteon.com", "nvijaya1@visteon.com", "psingh17@visteon.com"];
-                    if (this.user && this.user.role === 'candidate' && visteonEmails.includes(this.user.email)) {
+                    const isVisteon = typeof window.isVisteonUser === 'function' && window.isVisteonUser(this.user.email);
+                    if (this.user && this.user.role === 'candidate' && isVisteon) {
                         return this.topics.filter(t => t.id === 'VISTEON_C');
                     }
                     if (this.user && this.user.role === 'admin') {
-                        return this.topicFilter.length ? this.topics.filter(t => this.topicFilter.includes(t.id)) : this.topics;
+                        // Admins see everything, or at least the Filter + Visteon for testing
+                        let base = this.topicFilter.length ? this.topics.filter(t => this.topicFilter.includes(t.id)) : this.topics;
+                        if (!base.some(t => t.id === 'VISTEON_C')) {
+                            base = [...base, this.topics.find(t => t.id === 'VISTEON_C')].filter(Boolean);
+                        }
+                        return base;
                     }
                     let filtered = this.topicFilter.length ? this.topics.filter(t => this.topicFilter.includes(t.id)) : this.topics;
                     return filtered.filter(t => t.id !== 'VISTEON_C');
                 },
 
                 get allowedProjects() {
-                    const visteonEmails = ["achandel@visteon.com", "ppranee3@visteon.com", "tnair@visteon.com", "hreddy2@visteon.com", "rraman4@visteon.com", "mayan@visteon.com", "skrishak@visteon.com", "msanthos@visteon.com", "nvijaya1@visteon.com", "psingh17@visteon.com"];
-                    if (this.user && this.user.role === 'candidate' && visteonEmails.includes(this.user.email)) {
+                    const isVisteon = typeof window.isVisteonUser === 'function' && window.isVisteonUser(this.user.email);
+                    if (this.user && this.user.role === 'candidate' && isVisteon) {
                         return this.projects.filter(p => p.topicId === 'VISTEON_C');
                     }
                     if (this.user && this.user.role === 'admin') {
