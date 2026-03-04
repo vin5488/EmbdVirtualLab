@@ -351,7 +351,8 @@
                         </div>
                         <div>
                             <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Solved</div>
-                            <div class="text-2xl font-black text-white" x-text="solvedCount + ' / ' + projects.length">
+                            <div class="text-2xl font-black text-white"
+                                x-text="solvedCount + ' / ' + (selectedTopic?.id === 'VISTEON_C' ? 100 : (allowedProjects.length || projects.length))">
                             </div>
                         </div>
                     </div>
@@ -2480,7 +2481,7 @@
                 },
 
                 get solvedCount() { return this.solvedProjectIds.length; },
-                get totalProgress() { return Math.round((this.solvedCount / (this.allowedProjects.length || this.projects.length)) * 100) || 0; },
+                get totalProgress() { return Math.round((this.solvedCount / (this.selectedTopic?.id === 'VISTEON_C' ? 100 : (this.allowedProjects.length || this.projects.length))) * 100) || 0; },
                 get totalPointsEarned() {
                     return this.projects.filter(p => this.solvedProjectIds.includes(p.id))
                         .reduce((sum, p) => sum + p.points, 0);
