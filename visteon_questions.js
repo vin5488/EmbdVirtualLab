@@ -79,6 +79,16 @@ window.isVisteonUser = function (email) {
     return window.VISTEON_WHITELIST.some(e => e.trim().toLowerCase() === cleanEmail);
 };
 
+window.C_PROGRAMS_WHITELIST = [
+    // Add C-programs client emails here (e.g. "client@company.com")
+];
+
+window.isCOnlyClient = function (email) {
+    if (!email) return false;
+    const cleanEmail = email.trim().toLowerCase();
+    return window.C_PROGRAMS_WHITELIST.some(e => e.trim().toLowerCase() === cleanEmail);
+};
+
 window.VISTEON_PROJECTS = [
     {
         "id": "VISTEON-01",
