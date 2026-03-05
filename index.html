@@ -1794,11 +1794,11 @@
                                     this.user = data.user;
                                     this.isLoggedIn = true;
                                     if (data.session) {
-                                        // Server session takes precedence
+                                        // Server session — only apply if NOT in Visteon mode
                                         const s = data.session;
-                                        if (s.selectedTopicId)
+                                        if (!isVisteonMode && s.selectedTopicId)
                                             this.selectedTopic = this.topics.find(t => t.id === s.selectedTopicId) || this.topics[0];
-                                        if (s.activeProjectId) {
+                                        if (!isVisteonMode && s.activeProjectId) {
                                             const p = this.projects.find(pj => pj.id === s.activeProjectId);
                                             if (p) {
                                                 this.activeProject = p;
