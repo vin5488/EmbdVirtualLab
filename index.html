@@ -1867,8 +1867,8 @@
                     { id: 'STM32_HAL', name: 'STM32 HAL Programming', icon: 'fas fa-layer-group', difficulty: 'Intermediate', projectCount: 10, desc: 'STM32 HAL API programming — HAL_GPIO, HAL_UART, HAL_TIM, HAL_ADC, I2C, SPI. HAL calls produce observable output for automated testing.' },
                     { id: 'FREERTOS_SIM', name: 'FreeRTOS Simulation', icon: 'fas fa-tasks', difficulty: 'Advanced', projectCount: 10, desc: 'Real FreeRTOS running on the server via its POSIX/Linux port — tasks, queues, semaphores, mutexes, event groups & software timers.' },
                     { id: 'DEBUG_LAB', name: '🔧 Bug Hunt: Debug Lab', icon: 'fas fa-bug text-red-400', difficulty: 'Advanced', projectCount: 10, desc: 'Real-world debugging challenges. Every project gives you broken code + a production incident report — find and fix the root cause. This is what Day 1 at a company actually looks like.' },
-                    { id: 'VISTEON_C', name: 'Visteon C Programming Assignment Questions', icon: 'fas fa-building text-blue-500', difficulty: 'Advanced', projectCount: 100, desc: 'Exclusive intermediate to advanced C programming assignments covering structures, pointers, memory mapping, and more.' }
-
+                    { id: 'VISTEON_C', name: 'Visteon C Programming Assignment Questions', icon: 'fas fa-building text-blue-500', difficulty: 'Advanced', projectCount: 100, desc: 'Exclusive intermediate to advanced C programming assignments covering structures, pointers, memory mapping, and more.' },
+                    { id: 'VISTEON_C_BASIC', name: 'Visteon C Programming: Basic ECU', icon: 'fas fa-car-side text-blue-400', difficulty: 'Basic', projectCount: 10, desc: 'Focus on core ECU control logic using basic C constructs: if-else, switch-case, and while loops. Simulates real vehicle control units.' }
                 ],
 
 
@@ -1908,6 +1908,120 @@
                     { id: 'LINUX-14', topicId: 'LINUX_SYS', title: 'Thread Local Storage', difficulty: 'Advanced', points: 200, statement: 'Use __thread (GCC TLS) or pthread_key to give each of 4 threads their own private integer (set to their thread index 0-3). Each thread prints "Thread <idx>: value=<idx>". No mutex required — TLS guarantees isolation.', acceptance: ['__thread or pthread_key_t', 'Each thread sees its own value', '4 lines output'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: '4 lines: Thread N: value=N (any order)', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <pthread.h>\n#include <stdlib.h>\n\n__thread int tls_val; // Thread-Local Storage\n\nvoid* task(void* arg) {\n    int idx = *(int*)arg;\n    tls_val = idx;\n    // small sleep to allow interleaving\n    printf("Thread %d: value=%d\\n", idx, tls_val);\n    return NULL;\n}\n\nint main() {\n    pthread_t t[4];\n    int ids[4];\n    for (int i = 0; i < 4; i++) {\n        ids[i] = i;\n        pthread_create(&t[i], NULL, task, &ids[i]);\n    }\n    for (int i = 0; i < 4; i++) pthread_join(t[i], NULL);\n    return 0;\n}' }], testCases: [{ name: 'TLS', stdin: '', expectedOutput: 'value=' }] },
 
                     { id: 'LINUX-15', topicId: 'LINUX_SYS', title: 'Zombie Process Prevention', difficulty: 'Advanced', points: 150, statement: 'Create 3 child processes. Use SIGCHLD with SA_NOCLDWAIT flag (or signal(SIGCHLD, SIG_IGN)) to auto-reap children without calling wait(). After all children exit, parent prints "Reaped: 3" using a global counter incremented in a SIGCHLD handler (sigaction).', acceptance: ['SIGCHLD handler', 'No explicit wait() in main loop', 'All 3 reaped'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'Reaped: 3', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <stdlib.h>\n#include <signal.h>\n#include <unistd.h>\n#include <sys/wait.h>\n\nvolatile int reaped = 0;\n\nvoid sigchld_handler(int sig) {\n    while (waitpid(-1, NULL, WNOHANG) > 0) reaped++;\n}\n\nint main() {\n    struct sigaction sa = { .sa_handler = sigchld_handler, .sa_flags = SA_RESTART };\n    sigaction(SIGCHLD, &sa, NULL);\n    for (int i = 0; i < 3; i++) {\n        if (fork() == 0) return 0; // child exits immediately\n    }\n    // TODO: wait until reaped == 3 (hint: use a small busy-wait loop)\n    printf("Reaped: %d\\n", reaped);\n    return 0;\n}' }], testCases: [{ name: 'Reap', stdin: '', expectedOutput: 'Reaped: 3' }] },
+
+                    // --- Visteon C Programming: Basic ECU (VISTEON_C_BASIC) ---
+                    {
+                        id: 'ECU-01',
+                        topicId: 'VISTEON_C_BASIC',
+                        title: 'Q1: Basic ECU Control Logic',
+                        difficulty: 'Basic',
+                        points: 100,
+                        statement: 'Develop a simple Control Logic for a Vehicle.\n- Speed > 120 km/h: Print "Warning: Overspeed", else: "Speed Normal"\n- Temperature > 110: "Critical Overheat", > 95: "High Temperature", else: "Temperature Normal"\n- Gear (0: Neutral, 1-5: First-Fifth Gear, else: "Invalid Gear")\n\nConstraints: Use if-else, switch, and while(1). No arrays or functions.',
+                        acceptance: ['Correct speed logic', 'Correct temp logic', 'Switch for gear used'], deliverables: ['main.c'],
+                        inputSpec: 'Speed(int) Temp(int) Gear(int)',
+                        outputSpec: 'Overspeed status\nTemp status\nGear status',
+                        files: [{ name: 'main.c', content: '#include <stdio.h>\n\nint main() {\n    int s, t, g;\n    while(scanf("%d %d %d", &s, &t, &g) == 3) {\n        if(s > 120) printf("Warning: Overspeed\\n");\n        else printf("Speed Normal\\n");\n        if(t > 110) printf("Critical Overheat\\n");\n        else if(t > 95) printf("High Temperature\\n");\n        else printf("Temperature Normal\\n");\n        switch(g) {\n            case 0: printf("Neutral\\n"); break;\n            case 1: printf("First Gear\\n"); break;\n            case 2: printf("Second Gear\\n"); break;\n            case 3: printf("Third Gear\\n"); break;\n            case 4: printf("Fourth Gear\\n"); break;\n            case 5: printf("Fifth Gear\\n"); break;\n            default: printf("Invalid Gear\\n"); break;\n        }\n    }\n    return 0;\n}' }],
+                        testCases: [{ name: 'Normal', stdin: '100 80 4', expectedOutput: 'Speed Normal\nTemperature Normal\nFourth Gear' }, { name: 'Warning', stdin: '130 98 3', expectedOutput: 'Warning: Overspeed\nHigh Temperature\nThird Gear' }]
+                    },
+                    {
+                        id: 'ECU-02',
+                        topicId: 'VISTEON_C_BASIC',
+                        title: 'Q2: Fuel Level Monitor',
+                        difficulty: 'Basic', points: 80,
+                        statement: 'Monitor fuel level (0-100%).\n- < 10: "CRITICAL: Fuel Empty", < 25: "Warning: Low Fuel", < 50: "Fuel Below Half", else: "Fuel OK".',
+                        acceptance: ['Correct thresholds'], deliverables: ['main.c'],
+                        inputSpec: 'Fuel level(int)', outputSpec: 'Fuel status',
+                        files: [{ name: 'main.c', content: '#include <stdio.h>\n\nint main() {\n    int f;\n    while(scanf("%d", &f) == 1) {\n        if(f < 10) printf("CRITICAL: Fuel Empty\\n");\n        else if(f < 25) printf("Warning: Low Fuel\\n");\n        else if(f < 50) printf("Fuel Below Half\\n");\n        else printf("Fuel OK\\n");\n    }\n    return 0;\n}' }],
+                        testCases: [{ name: 'Critical', stdin: '8', expectedOutput: 'CRITICAL: Fuel Empty' }]
+                    },
+                    {
+                        id: 'ECU-03',
+                        topicId: 'VISTEON_C_BASIC',
+                        title: 'Q3: RPM Redline System',
+                        difficulty: 'Basic', points: 80,
+                        statement: 'Check RPM.\n- > 7000: "DANGER: Redline!", > 5500: "Warning: High RPM", > 3000: "RPM Normal", else: "Low RPM".',
+                        acceptance: ['RPM zones'], deliverables: ['main.c'],
+                        inputSpec: 'RPM(int)', outputSpec: 'RPM status',
+                        files: [{ name: 'main.c', content: '#include <stdio.h>\n\nint main() {\n    int r;\n    while(scanf("%d", &r) == 1) {\n        if(r > 7000) printf("DANGER: Redline!\\n");\n        else if(r > 5500) printf("Warning: High RPM\\n");\n        else if(r > 3000) printf("RPM Normal\\n");\n        else printf("Low RPM\\n");\n    }\n    return 0;\n}' }],
+                        testCases: [{ name: 'Redline', stdin: '7500', expectedOutput: 'DANGER: Redline!' }]
+                    },
+                    {
+                        id: 'ECU-04',
+                        topicId: 'VISTEON_C_BASIC',
+                        title: 'Q4: Oil Pressure Monitor',
+                        difficulty: 'Basic', points: 80,
+                        statement: 'Monitor Oil pressure (PSI).\n- < 15: "CRITICAL: Engine Shutdown!", < 30: "Warning: Low", <= 80: "Normal", else: "High".',
+                        acceptance: ['Pressure zones'], deliverables: ['main.c'],
+                        inputSpec: 'PSI(int)', outputSpec: 'Pressure status',
+                        files: [{ name: 'main.c', content: '#include <stdio.h>\n\nint main() {\n    int p;\n    while(scanf("%d", &p) == 1) {\n        if(p < 15) printf("CRITICAL: Engine Shutdown!\\n");\n        else if(p < 30) printf("Warning: Low\\n");\n        else if(p <= 80) printf("Normal\\n");\n        else printf("High\\n");\n    }\n    return 0;\n}' }],
+                        testCases: [{ name: 'Critical', stdin: '10', expectedOutput: 'CRITICAL: Engine Shutdown!' }]
+                    },
+                    {
+                        id: 'ECU-05',
+                        topicId: 'VISTEON_C_BASIC',
+                        title: 'Q5: Ignition Selector',
+                        difficulty: 'Basic', points: 70,
+                        statement: 'Key position (0: OFF, 1: ACC, 2: ON, 3: Start, else: Invalid). Use switch.',
+                        acceptance: ['Switch used'], deliverables: ['main.c'],
+                        inputSpec: 'Pos(int)', outputSpec: 'Status',
+                        files: [{ name: 'main.c', content: '#include <stdio.h>\n\nint main() {\n    int k;\n    while(scanf("%d", &k) == 1) {\n        switch(k) {\n            case 0: printf("OFF\\n"); break;\n            case 1: printf("ACC\\n"); break;\n            case 2: printf("ON\\n"); break;\n            case 3: printf("Start\\n"); break;\n            default: printf("Invalid\\n"); break;\n        }\n    }\n    return 0;\n}' }],
+                        testCases: [{ name: 'ACC', stdin: '1', expectedOutput: 'ACC' }]
+                    },
+                    {
+                        id: 'ECU-06',
+                        topicId: 'VISTEON_C_BASIC',
+                        title: 'Q6: Climate Fan Control',
+                        difficulty: 'Basic', points: 90,
+                        statement: 'Cabin vs Setpoint. If Cabin > Setpoint + 3: "A/C High", Cabin > Setpoint: "A/C Low", < Setpoint - 3: "Heater High", < Setpoint: "Heater Low", else: "Fan Off".',
+                        acceptance: ['5 fan states'], deliverables: ['main.c'],
+                        inputSpec: 'Cabin(int) Set(int)', outputSpec: 'Fan status',
+                        files: [{ name: 'main.c', content: '#include <stdio.h>\n\nint main() {\n    int c, s;\n    while(scanf("%d %d", &c, &s) == 2) {\n        if(c > s + 3) printf("A/C High\\n");\n        else if(c > s) printf("A/C Low\\n");\n        else if(c < s - 3) printf("Heater High\\n");\n        else if(c < s) printf("Heater Low\\n");\n        else printf("Fan Off\\n");\n    }\n    return 0;\n}' }],
+                        testCases: [{ name: 'A/C High', stdin: '30 22', expectedOutput: 'A/C High' }]
+                    },
+                    {
+                        id: 'ECU-07',
+                        topicId: 'VISTEON_C_BASIC',
+                        title: 'Q7: Brake Pressure Failure',
+                        difficulty: 'Basic', points: 80,
+                        statement: 'Monitor Brake Bar. < 5: "FAILURE", < 10: "Low", <= 20: "Normal", else: "Excessive".',
+                        acceptance: ['Brake status'], deliverables: ['main.c'],
+                        inputSpec: 'Bar(int)', outputSpec: 'Status',
+                        files: [{ name: 'main.c', content: '#include <stdio.h>\n\nint main() {\n    int b;\n    while(scanf("%d", &b) == 1) {\n        if(b < 5) printf("FAILURE\\n");\n        else if(b < 10) printf("Low\\n");\n        else if(b <= 20) printf("Normal\\n");\n        else printf("Excessive\\n");\n    }\n    return 0;\n}' }],
+                        testCases: [{ name: 'Failure', stdin: '3', expectedOutput: 'FAILURE' }]
+                    },
+                    {
+                        id: 'ECU-08',
+                        topicId: 'VISTEON_C_BASIC',
+                        title: 'Q8: Throttle Drive Mode',
+                        difficulty: 'Basic', points: 70,
+                        statement: 'Throttle % (0-100). 0: "Idle", <= 25: "Economy", <= 60: "Normal", <= 85: "Sport", else: "FULL".',
+                        acceptance: ['Mode selection'], deliverables: ['main.c'],
+                        inputSpec: 'Thr(int)', outputSpec: 'Mode',
+                        files: [{ name: 'main.c', content: '#include <stdio.h>\n\nint main() {\n    int th;\n    while(scanf("%d", &th) == 1) {\n        if(th == 0) printf("Idle\\n");\n        else if(th <= 25) printf("Economy\\n");\n        else if(th <= 60) printf("Normal\\n");\n        else if(th <= 85) printf("Sport\\n");\n        else printf("FULL\\n");\n    }\n    return 0;\n}' }],
+                        testCases: [{ name: 'Eco', stdin: '15', expectedOutput: 'Economy' }]
+                    },
+                    {
+                        id: 'ECU-09',
+                        topicId: 'VISTEON_C_BASIC',
+                        title: 'Q9: Wiper Control',
+                        difficulty: 'Basic', points: 70,
+                        statement: 'Rain(0-100) and Sw(0/1). If Sw is ON: rain > 70: "Fast", > 40: "Medium", > 10: "Slow", else "Off". If Sw is OFF: "Off".',
+                        acceptance: ['Switch handled'], deliverables: ['main.c'],
+                        inputSpec: 'Rain(int) Sw(int)', outputSpec: 'Wiper status',
+                        files: [{ name: 'main.c', content: '#include <stdio.h>\n\nint main() {\n    int r, s;\n    while(scanf("%d %d", &r, &s) == 2) {\n        if(s == 1) {\n            if(r > 70) printf("Fast\\n");\n            else if(r > 40) printf("Medium\\n");\n            else if(r > 10) printf("Slow\\n");\n            else printf("Off\\n");\n        } else {\n            printf("Off\\n");\n        }\n    }\n    return 0;\n}' }],
+                        testCases: [{ name: 'Fast', stdin: '80 1', expectedOutput: 'Fast' }]
+                    },
+                    {
+                        id: 'ECU-10',
+                        topicId: 'VISTEON_C_BASIC',
+                        title: 'Q10: Airbag Decision',
+                        difficulty: 'Intermediate', points: 100,
+                        statement: 'Impact(G) and Belt(0/1). If Impact > 30 or (Impact > 20 and Belt == 0): "DEPLOYED", else: "Normal".',
+                        acceptance: ['Deployment logic'], deliverables: ['main.c'],
+                        inputSpec: 'Imp(int) Belt(int)', outputSpec: 'Airbag status',
+                        files: [{ name: 'main.c', content: '#include <stdio.h>\n\nint main() {\n    int i, b;\n    while(scanf("%d %d", &i, &b) == 2) {\n        if(i > 30 || (i > 20 && b == 0)) printf("DEPLOYED\\n");\n        else printf("Normal\\n");\n    }\n    return 0;\n}' }],
+                        testCases: [{ name: 'Deploy', stdin: '35 1', expectedOutput: 'DEPLOYED' }]
+                    },
 
                     { id: 'LINUX-16', topicId: 'LINUX_SYS', title: 'Memory-Mapped File', difficulty: 'Advanced', points: 250, statement: 'Use mmap() to map /tmp/vlab_mmap_test.txt into memory. Write "MMAP_HELLO" to the file via the mapping. Then read it back with a second mmap call and print the content.', acceptance: ['mmap/munmap used', 'ftruncate to set size', 'Content matches'], deliverables: ['main.c'], inputSpec: 'None', outputSpec: 'MMAP_HELLO', files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n#include <fcntl.h>\n#include <sys/mman.h>\n#include <unistd.h>\n\n#define FILE_PATH "/tmp/vlab_mmap_test.txt"\n#define DATA "MMAP_HELLO"\n\nint main() {\n    // TODO: open file, ftruncate to strlen(DATA)+1 bytes\n    // TODO: mmap with PROT_WRITE, write DATA into mapping, munmap\n    // TODO: open again, mmap with PROT_READ, printf the content, munmap\n    // Cleanup: unlink(FILE_PATH)\n    return 0;\n}' }], testCases: [{ name: 'MMAP', stdin: '', expectedOutput: 'MMAP_HELLO' }] },
 
