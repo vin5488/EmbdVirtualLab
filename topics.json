@@ -12,6 +12,6 @@
     "STM32 HAL Programming": true,
     "FreeRTOS Simulation": false,
     "Bug Hunt: Debug Lab": false,
-    "Visteon C Programming Assignment Questions": true,
-    "Visteon C Programming: Basic ECU": true
+    "Visteon C Programming Assignment Questions": false,
+    "Visteon C Programming: Basic ECU": false
 }
