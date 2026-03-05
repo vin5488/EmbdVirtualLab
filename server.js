@@ -406,6 +406,32 @@ app.get('/api/config', (req, res) => {
     });
 });
 
+// Admin Panel — Topic Visibility Controls
+app.get('/topics', (req, res) => {
+    try {
+        const data = fs.readFileSync(path.join(__dirname, 'topics.json'), 'utf8');
+        res.json(JSON.parse(data));
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to read topics.json' });
+    }
+});
+
+app.post('/update-topic', (req, res) => {
+    try {
+        const { topic, enabled } = req.body;
+        const filePath = path.join(__dirname, 'topics.json');
+        const config = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+
+        config[topic] = enabled;
+        fs.writeFileSync(filePath, JSON.stringify(config, null, 2));
+
+        console.log(`[Admin] Topic "${topic}" updated to ${enabled}`);
+        res.send('updated');
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to update topics.json' });
+    }
+});
+
 // Helper to check if email is business (non-public)
 const PUBLIC_DOMAINS = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com', 'icloud.com', 'protonmail.com', 'zoho.com', 'yandex.com', 'mail.com'];
 function isBusinessEmail(email) {
