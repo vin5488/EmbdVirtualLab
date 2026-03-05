@@ -32,7 +32,9 @@ RUN npm install --omit=dev
 # Copy app files
 COPY server.js .
 COPY index.html .
+COPY visteon_questions.js .
 COPY platform/ ./platform/
+COPY scripts/ ./scripts/
 
 
 # Create data directory for SQLite database (owned by appuser)
