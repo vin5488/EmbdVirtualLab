@@ -11,7 +11,7 @@
     <!-- Internal Logic Analyzer script instead of external Wokwi -->
     <!-- No external compiler script needed for Judge0 API -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="/visteon_questions.js?v=202603051610"></script>
+    <script src="/visteon_questions.js?v=202603051625"></script>
 
     <!-- CodeMirror 6 for Syntax Highlighting -->
     <script type="module">
@@ -1736,21 +1736,24 @@
 
                 init() {
                     const urlParams = new URLSearchParams(window.location.search);
+                    const isVisteonMode = urlParams.get('client') === 'visteon';
 
                     // 1. Immediate Visteon Mode Enforcement (Strict)
-                    if (urlParams.get('client') === 'visteon') {
+                    if (isVisteonMode) {
                         this.topicFilter = ['VISTEON_C'];
                         this.platformTitle = 'Visteon Embedded Lab';
                         this.platformSubtitle = 'Exclusive C Programming Assessment Environment';
                         this.selectedTopic = this.topics.find(t => t.id === 'VISTEON_C');
+                        this.currentView = 'workspace'; // Force straight into workspace
                     }
 
-                    // 2. Load projects immediately
-                    if (window.VISTEON_PROJECTS) {
+                    // 2. Load Visteon projects immediately
+                    if (window.VISTEON_PROJECTS && window.VISTEON_PROJECTS.length > 0) {
                         this.projects.unshift(...window.VISTEON_PROJECTS);
-                        // If in Visteon mode and no project active, select the first Visteon one
-                        if (urlParams.get('client') === 'visteon' && (!this.activeProject || this.activeProject.topicId !== 'VISTEON_C')) {
+                        // In Visteon mode, always start on the first Visteon problem
+                        if (isVisteonMode) {
                             this.activeProject = window.VISTEON_PROJECTS[0];
+                            this.activeFiles = JSON.parse(JSON.stringify(this.activeProject.files || []));
                         }
                     }
 
@@ -1769,7 +1772,6 @@
                     // Restore session from localStorage first for instant UI responsiveness
                     // Skip topic/project restoration if in Visteon mode (Visteon overrides take priority)
                     const saved = localStorage.getItem('virtual_lab_session');
-                    const isVisteonMode = urlParams.get('client') === 'visteon';
                     if (saved) {
                         try {
                             const s = JSON.parse(saved);
