@@ -1,0 +1,260 @@
+﻿diff --git a/index.html b/index.html
+index cf85a36..59a425a 100644
+--- a/index.html
++++ b/index.html
+@@ -10 +10 @@
+-    <script src="https://unpkg.com/@wokwi/elements@0.48.3/dist/wokwi-elements.bundle.js"></script>
++    <!-- Internal Logic Analyzer script instead of external Wokwi -->
+@@ -709,0 +710 @@
++                                        <!-- INTERACTIVE LOGIC ANALYZER HARDWARE VISUALIZATION -->
+@@ -713,4 +714,15 @@
+-                                                class="mb-8 p-6 bg-slate-950 border border-slate-800 rounded-2xl relative overflow-hidden shadow-2xl flex flex-col items-center">
+-                                                <div class="absolute inset-0 bg-blue-500/5 mix-blend-overlay"></div>
+-                                                <div
+-                                                    class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-50">
++                                                class="mb-8 p-6 bg-slate-900 border border-slate-700 rounded-2xl relative shadow-2xl flex flex-col">
++                                                <div class="flex justify-between items-center mb-4">
++                                                    <h4
++                                                        class="text-xs font-black text-cyan-400 uppercase tracking-widest flex items-center gap-2">
++                                                        <i class="fas fa-wave-square animate-pulse"></i> Logic Analyzer
++                                                        (Oscilloscope)
++                                                    </h4>
++                                                    <div class="flex items-center gap-2">
++                                                        <span class="w-2 h-2 rounded-full"
++                                                            :class="rp2040LEDOn ? 'bg-cyan-400 shadow-[0_0_10px_#22d3ee]' : 'bg-slate-700'"></span>
++                                                        <span class="text-[10px] text-slate-400 font-mono font-bold"
++                                                            x-text="rp2040LEDOn ? 'HIGH' : 'LOW'"></span>
++                                                        <span class="text-[10px] text-slate-500 font-mono ml-2">CH0:
++                                                            GPIO 25</span>
++                                                    </div>
+@@ -719,12 +731,9 @@
+-                                                <h4
+-                                                    class="text-xs font-black text-cyan-400 uppercase tracking-widest mb-6 flex items-center gap-2">
+-                                                    <i class="fas fa-microchip animate-pulse"></i> Virtual Hardware
+-                                                    Running...
+-                                                </h4>
+-
+-                                                <div class="relative w-auto h-auto flex justify-center py-4">
+-                                                    <!-- Official Wokwi Web Component for Raspberry Pi Pico -->
+-                                                    <wokwi-pi-pico class="drop-shadow-2xl"
+-                                                        style="max-width: 250px; height: auto;"
+-                                                        :led="rp2040LEDOn ? 'true' : 'false'">
+-                                                    </wokwi-pi-pico>
++                                                <div class="relative w-full h-32 bg-slate-950 rounded-xl overflow-hidden border border-slate-800"
++                                                    x-init="setTimeout(() => window.startLogicAnalyzer && window.startLogicAnalyzer(), 100)">
++                                                    <!-- Background Grid Lines via CSS -->
++                                                    <div class="absolute inset-0"
++                                                        style="background-image: linear-gradient(#1e293b 1px, transparent 1px), linear-gradient(90deg, #1e293b 1px, transparent 1px); background-size: 20px 20px; opacity: 0.5;">
++                                                    </div>
++                                                    <!-- Waveform Canvas -->
++                                                    <canvas id="logicAnalyzerCanvas"
++                                                        class="absolute inset-0 w-full h-full z-10"></canvas>
+@@ -1826 +1835,2 @@
+-                    { id: 'FREERTOS_SIM', name: 'FreeRTOS Simulation', icon: 'fas fa-tasks', difficulty: 'Advanced', projectCount: 10, desc: 'Real FreeRTOS running on the server via its POSIX/Linux port ΓÇö tasks, queues, semaphores, mutexes, event groups & software timers.' }
++                    { id: 'FREERTOS_SIM', name: 'FreeRTOS Simulation', icon: 'fas fa-tasks', difficulty: 'Advanced', projectCount: 10, desc: 'Real FreeRTOS running on the server via its POSIX/Linux port ΓÇö tasks, queues, semaphores, mutexes, event groups & software timers.' },
++                    { id: 'DEBUG_LAB', name: '≡ƒöº Bug Hunt: Debug Lab', icon: 'fas fa-bug text-red-400', difficulty: 'Advanced', projectCount: 10, desc: 'Real-world debugging challenges. Every project gives you broken code + a production incident report ΓÇö find and fix the root cause. This is what Day 1 at a company actually looks like.' }
+@@ -2082,0 +2093,96 @@
++                    // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
++                    // ≡ƒöº BUG HUNT: DEBUG LAB (DEBUG_LAB)
++                    // Each challenge has INTENTIONALLY BUGGY starter code.
++                    // The engineer must find and fix the bug ΓÇö not write from scratch.
++                    // ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
++
++                    {
++                        id: 'DBG-01', topicId: 'DEBUG_LAB', title: 'ADC Always Reads Zero', difficulty: 'Advanced', points: 300,
++                        statement: '≡ƒÜ¿ PRODUCTION INCIDENT ΓÇö Ticket #4821\n\n**Customer Report:** \"Temperature sensor on the dashboard always shows 0┬░C regardless of ambient temperature.\"\n\n**Root Cause Analysis Lead:** The ADC peripheral reads raw value 0 every time. The analog hardware has been verified ΓÇö the issue is in software initialization.\n\n**Your Task:** The code below initializes and reads an ADC peripheral. It compiles without warnings but the ADC always returns 0. Find the bug and fix it.\n\n**Hint:** On STM32, peripherals are clock-gated by default. You must enable the clock before accessing any peripheral registers.\n\n**Expected Output:** ADC:2048 TEMP:25.00',
++                        acceptance: ['Enable ADC clock before use', 'Correct initialization sequence'], deliverables: ['main.c'],
++                        inputSpec: 'None', outputSpec: 'ADC:2048 TEMP:25.00',
++                        files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <stdint.h>\n\ntypedef struct {\n    uint32_t CR;\n    uint32_t SR;\n    uint32_t DR;\n    uint32_t enabled;\n} ADC_TypeDef;\n\ntypedef struct {\n    uint32_t APB2ENR;\n} RCC_TypeDef;\n\nstatic ADC_TypeDef adc1_hw = {0, 0, 0, 0};\nstatic RCC_TypeDef rcc_hw = {0};\n#define ADC1 (&adc1_hw)\n#define RCC  (&rcc_hw)\n#define RCC_APB2ENR_ADC1EN (1U << 9)\n\nvoid ADC_Enable_Clock(void) {\n    RCC->APB2ENR |= RCC_APB2ENR_ADC1EN;\n    ADC1->enabled = 1;\n}\n\nuint32_t ADC_Read(void) {\n    if (!ADC1->enabled) return 0;\n    ADC1->DR = 2048;\n    return ADC1->DR;\n}\n\ndouble adc_to_temp(uint32_t raw) {\n    double voltage = (raw * 3.3) / 4095.0;\n    return (voltage - 0.5) / 0.01;\n}\n\nint main() {\n    // BUG: Developer forgot to enable the ADC clock!\n    // ADC_Enable_Clock();  <-- commented out during merge conflict\n\n    ADC1->CR = 0x01;\n    uint32_t raw = ADC_Read();\n    double temp = adc_to_temp(raw);\n    printf(\"ADC:%u TEMP:%.2f\\n\", raw, temp);\n    return 0;\n}' }],
++                        testCases: [{ name: 'ADC reads correctly', stdin: '', expectedOutput: 'ADC:2048 TEMP:25.00' }]
++                    },
++
++                    {
++                        id: 'DBG-02', topicId: 'DEBUG_LAB', title: 'LED Blinks Too Fast', difficulty: 'Advanced', points: 300,
++                        statement: '≡ƒÜ¿ PRODUCTION INCIDENT ΓÇö Ticket #5103\n\n**Customer Report:** \"Status LED blinks much faster than 1Hz spec ΓÇö looks like rapid flickering.\"\n\n**Analysis:** Timer prescaler off-by-one. Timer counters count from 0 to PSC, so division is PSC+1. Developer used CLOCK/FREQ instead of (CLOCK/FREQ)-1.\n\n**Your Task:** Fix the prescaler calculation so the timer frequency is exactly 1.0000 Hz.\n\n**Expected Output:** FREQ:1.0000',
++                        acceptance: ['Prescaler uses N-1 pattern', 'Exact 1Hz'], deliverables: ['main.c'],
++                        inputSpec: 'None', outputSpec: 'FREQ:1.0000',
++                        files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <stdint.h>\n\n#define SYSTEM_CLOCK 72000000UL\n#define TARGET_FREQ  1000UL\n\ntypedef struct { uint32_t PSC; uint32_t ARR; uint32_t CNT; } TIM_TypeDef;\nstatic TIM_TypeDef tim2_hw = {0};\n#define TIM2 (&tim2_hw)\n\nvoid Timer_Init(void) {\n    // BUG: Should be (CLOCK/FREQ - 1) because counter counts 0..PSC\n    TIM2->PSC = SYSTEM_CLOCK / TARGET_FREQ;\n    TIM2->ARR = 999;\n    TIM2->CNT = 0;\n}\n\ndouble get_actual_freq(void) {\n    double tick_freq = (double)SYSTEM_CLOCK / (TIM2->PSC + 1);\n    return tick_freq / (TIM2->ARR + 1);\n}\n\nint main() {\n    Timer_Init();\n    printf(\"FREQ:%.4f\\n\", get_actual_freq());\n    return 0;\n}' }],
++                        testCases: [{ name: 'Exact 1Hz', stdin: '', expectedOutput: 'FREQ:1.0000' }]
++                    },
++
++                    {
++                        id: 'DBG-03', topicId: 'DEBUG_LAB', title: 'UART Sends Garbage', difficulty: 'Advanced', points: 300,
++                        statement: '≡ƒÜ¿ PRODUCTION INCIDENT ΓÇö Ticket #3890\n\n**Production Line Report:** \"Serial console shows gibberish. Board passes POST but UART output is unreadable.\"\n\n**Analysis:** Baud rate divisor uses integer division which truncates. Fix: round to nearest with (pclk + baud/2) / baud.\n\n**Your Task:** Fix the baud rate calculation so error is 0.00%.\n\n**Expected Output:** BAUD_OK:1 ERROR:0.00%',
++                        acceptance: ['Round to nearest integer', 'Error within tolerance'], deliverables: ['main.c'],
++                        inputSpec: 'None', outputSpec: 'BAUD_OK:1 ERROR:0.00%',
++                        files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <stdint.h>\n#include <math.h>\n\n#define PCLK      72000000UL\n#define BAUD_RATE 115200UL\n\ntypedef struct { uint32_t BRR; } USART_TypeDef;\nstatic USART_TypeDef usart1_hw = {0};\n#define USART1 (&usart1_hw)\n\nvoid UART_SetBaud(uint32_t pclk, uint32_t baud) {\n    // BUG: Integer division truncates! Use (pclk + baud/2) / baud\n    USART1->BRR = pclk / baud;\n}\n\nint main() {\n    UART_SetBaud(PCLK, BAUD_RATE);\n    double actual = (double)PCLK / USART1->BRR;\n    double err = fabs(actual - BAUD_RATE) / BAUD_RATE * 100.0;\n    printf(\"BAUD_OK:%d ERROR:%.2f%%\\n\", err < 0.5 ? 1 : 0, err);\n    return 0;\n}' }],
++                        testCases: [{ name: 'Baud within spec', stdin: '', expectedOutput: 'BAUD_OK:1 ERROR:0.00%' }]
++                    },
++
++                    {
++                        id: 'DBG-04', topicId: 'DEBUG_LAB', title: 'Sensor Average Overflows', difficulty: 'Advanced', points: 350,
++                        statement: '≡ƒÜ¿ PRODUCTION INCIDENT ΓÇö Ticket #6247\n\n**Fleet Issue (10,000 vehicles):** \"Fuel gauge occasionally shows negative readings when tank > 75% full.\"\n\n**Root Cause:** Averaging function uses int16_t for the sum accumulator. When adding 4 readings of ~9000, sum exceeds 32767 and wraps negative.\n\n**Your Task:** Fix the integer overflow by using a wider type for accumulation.\n\n**Expected Output:** AVG:9750',
++                        acceptance: ['Use int32_t for accumulator', 'Correct average'], deliverables: ['main.c'],
++                        inputSpec: 'N followed by N sensor values', outputSpec: 'AVG:<value>',
++                        files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <stdint.h>\n\nint16_t compute_average(int16_t* readings, int count) {\n    // BUG: int16_t overflows at 32767! Use int32_t\n    int16_t sum = 0;\n    for (int i = 0; i < count; i++) {\n        sum += readings[i];\n    }\n    return sum / count;\n}\n\nint main() {\n    int n; scanf(\"%d\", &n);\n    int16_t readings[64];\n    for (int i = 0; i < n; i++) {\n        int val; scanf(\"%d\", &val);\n        readings[i] = (int16_t)val;\n    }\n    printf(\"AVG:%d\\n\", compute_average(readings, n));\n    return 0;\n}' }],
++                        testCases: [{ name: 'Small values', stdin: '4 100 200 300 400', expectedOutput: 'AVG:250' }, { name: 'Large values (overflow)', stdin: '4 9000 9500 10000 10500', expectedOutput: 'AVG:9750' }]
++                    },
++
++                    {
++                        id: 'DBG-05', topicId: 'DEBUG_LAB', title: 'ISR Variable Not Updating', difficulty: 'Advanced', points: 400,
++                        statement: '≡ƒÜ¿ PRODUCTION INCIDENT ΓÇö Ticket #7712\n\n**Intermittent Bug:** \"Speedometer freezes at random value. Engine running, wheels turning, but display is stale. Power cycle fixes it.\"\n\n**Root Cause:** Timer ISR updates global pulse_count. Compiler optimizes the main-loop read into a register and never re-reads from memory. Fix: add volatile qualifier.\n\n**Your Task:** Fix the shared variable declaration. The simulation fires the ISR 120 times in 2000ms.\n\n**Expected Output:** SPEED:216',
++                        acceptance: ['Add volatile qualifier', 'Understand compiler optimization'], deliverables: ['main.c'],
++                        inputSpec: 'None', outputSpec: 'SPEED:216',
++                        files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <stdint.h>\n\n// BUG: Missing volatile! Compiler may cache in register.\nuint32_t pulse_count = 0;\n\nvoid TIM3_IRQHandler(void) { pulse_count++; }\n\nvoid simulate_isr_activity(void) {\n    for (int i = 0; i < 120; i++) TIM3_IRQHandler();\n}\n\nuint32_t compute_speed_kph(uint32_t pulses, uint32_t time_ms) {\n    if (time_ms == 0) return 0;\n    double dist = (double)pulses;\n    double t = time_ms / 1000.0;\n    return (uint32_t)(dist / t * 3.6);\n}\n\nint main() {\n    pulse_count = 0;\n    simulate_isr_activity();\n    uint32_t speed = compute_speed_kph(pulse_count, 2000);\n    printf(\"SPEED:%u\\n\", speed);\n    return 0;\n}' }],
++                        testCases: [{ name: 'Speed calc', stdin: '', expectedOutput: 'SPEED:216' }]
++                    },
++
++                    {
++                        id: 'DBG-06', topicId: 'DEBUG_LAB', title: 'CAN Filter Rejects Valid Messages', difficulty: 'Advanced', points: 400,
++                        statement: '≡ƒÜ¿ PRODUCTION INCIDENT ΓÇö Ticket #8341\n\n**Integration Test Fail:** \"ECU-B should receive speed data on CAN ID 0x123 but the message never arrives. Bus analyzer confirms 0x123 is on the wire.\"\n\n**Root Cause:** CAN filter mask bit-shift error. STM32 stores Standard ID in bits [31:21]. Developer shifted by 20 instead of 21.\n\n**Your Task:** Fix the bit shift in CAN_FilterInit.\n\n**Expected Output:** MSG_ACCEPTED:1 ID:0x123 DATA:0x55',
++                        acceptance: ['Correct filter ID bit position', 'Shift by 21 not 20'], deliverables: ['main.c'],
++                        inputSpec: 'None', outputSpec: 'MSG_ACCEPTED:1 ID:0x123 DATA:0x55',
++                        files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <stdint.h>\n\ntypedef struct { uint32_t FR1; uint32_t FR2; } CAN_Filter;\ntypedef struct { uint32_t StdId; uint8_t Data[8]; uint8_t DLC; } CAN_RxMsg;\nstatic CAN_Filter filter = {0};\n\nvoid CAN_FilterInit(uint16_t accept_id) {\n    // BUG: Should shift by 21, not 20!\n    filter.FR1 = (uint32_t)accept_id << 20;\n    filter.FR2 = 0x7FFU << 20;\n}\n\nint CAN_CheckFilter(CAN_RxMsg* msg) {\n    uint32_t incoming = (uint32_t)msg->StdId << 21;\n    return ((incoming & filter.FR2) == (filter.FR1 & filter.FR2));\n}\n\nint main() {\n    CAN_FilterInit(0x123);\n    CAN_RxMsg msg = { .StdId = 0x123, .Data = {0x55}, .DLC = 1 };\n    printf(\"MSG_ACCEPTED:%d ID:0x%03X DATA:0x%02X\\n\",\n           CAN_CheckFilter(&msg), msg.StdId, msg.Data[0]);\n    return 0;\n}' }],
++                        testCases: [{ name: 'Filter accepts 0x123', stdin: '', expectedOutput: 'MSG_ACCEPTED:1 ID:0x123 DATA:0x55' }]
++                    },
++
++                    {
++                        id: 'DBG-07', topicId: 'DEBUG_LAB', title: 'Buffer Overflow Crash', difficulty: 'Advanced', points: 350,
++                        statement: '≡ƒÜ¿ PRODUCTION INCIDENT ΓÇö Ticket #9102\n\n**Crash Report (1 in 500 power cycles):** \"Diagnostic ECU HardFaults when receiving exactly 64-byte UDS response. Shorter responses work fine.\"\n\n**Root Cause:** Receive loop uses <= instead of <, writing one byte past the 64-byte buffer. Corrupts adjacent stack variable.\n\n**Your Task:** Fix the loop boundary.\n\n**Expected Output:** COPY_OK:1 GUARD:0xDEAD',
++                        acceptance: ['Fix <= to <', 'No buffer overrun'], deliverables: ['main.c'],
++                        inputSpec: 'None', outputSpec: 'COPY_OK:1 GUARD:0xDEAD',
++                        files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <stdint.h>\n#include <string.h>\n\n#define BUF_SIZE 64\n\nint process_response(uint8_t* src, int len) {\n    uint8_t local_buf[BUF_SIZE];\n    uint16_t guard = 0xDEAD;\n\n    // BUG: <= writes one byte past end! Should be <\n    for (int i = 0; i <= len && i <= BUF_SIZE; i++) {\n        local_buf[i] = src[i];\n    }\n\n    if (guard != 0xDEAD) return -1;\n    return 1;\n}\n\nint main() {\n    uint8_t data[64];\n    memset(data, 0xAA, 64);\n    int result = process_response(data, 64);\n    printf(\"COPY_OK:%d GUARD:0xDEAD\\n\", result);\n    return 0;\n}' }],
++                        testCases: [{ name: 'No overflow', stdin: '', expectedOutput: 'COPY_OK:1 GUARD:0xDEAD' }]
++                    },
++
++                    {
++                        id: 'DBG-08', topicId: 'DEBUG_LAB', title: 'Motor Runs Backwards', difficulty: 'Advanced', points: 300,
++                        statement: '≡ƒÜ¿ PRODUCTION INCIDENT ΓÇö Ticket #5567\n\n**Assembly Line Report:** \"Window motor runs in wrong direction. Pressing UP moves window DOWN.\"\n\n**Root Cause:** Motor H-bridge has FORWARD=PA5 and REVERSE=PA6. Developer swapped them in the init struct.\n\n**Your Task:** Fix the pin assignment.\n\n**Expected Output for UP:** MOTOR:FORWARD PIN_A5:HIGH PIN_A6:LOW',
++                        acceptance: ['Correct pin assignment', 'Direction matches command'], deliverables: ['main.c'],
++                        inputSpec: 'Direction: UP or DOWN', outputSpec: 'MOTOR direction and pin states',
++                        files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <string.h>\n#include <stdint.h>\n\ntypedef struct { uint8_t pin_forward; uint8_t pin_reverse; } MotorConfig;\ntypedef struct { uint8_t pins[8]; } GPIO_Port;\nstatic GPIO_Port gpioa = {{0}};\n\nvoid motor_init(MotorConfig* cfg) {\n    // BUG: Pins swapped! FORWARD=5, REVERSE=6\n    cfg->pin_forward = 6;  // Wrong!\n    cfg->pin_reverse = 5;  // Wrong!\n}\n\nvoid motor_drive(MotorConfig* cfg, const char* dir) {\n    gpioa.pins[cfg->pin_forward] = 0;\n    gpioa.pins[cfg->pin_reverse] = 0;\n    if (!strcmp(dir, \"UP\"))   gpioa.pins[cfg->pin_forward] = 1;\n    if (!strcmp(dir, \"DOWN\")) gpioa.pins[cfg->pin_reverse] = 1;\n}\n\nint main() {\n    char cmd[10]; scanf(\"%s\", cmd);\n    MotorConfig motor; motor_init(&motor);\n    motor_drive(&motor, cmd);\n    const char* dir = gpioa.pins[5] ? \"FORWARD\" : gpioa.pins[6] ? \"REVERSE\" : \"STOPPED\";\n    printf(\"MOTOR:%s PIN_A5:%s PIN_A6:%s\\n\", dir,\n           gpioa.pins[5]?\"HIGH\":\"LOW\", gpioa.pins[6]?\"HIGH\":\"LOW\");\n    return 0;\n}' }],
++                        testCases: [{ name: 'UP=Forward', stdin: 'UP', expectedOutput: 'MOTOR:FORWARD PIN_A5:HIGH PIN_A6:LOW' }, { name: 'DOWN=Reverse', stdin: 'DOWN', expectedOutput: 'MOTOR:REVERSE PIN_A5:LOW PIN_A6:HIGH' }]
++                    },
++
++                    {
++                        id: 'DBG-09', topicId: 'DEBUG_LAB', title: 'Timestamp Wraps at 65535', difficulty: 'Advanced', points: 350,
++                        statement: '≡ƒÜ¿ PRODUCTION INCIDENT ΓÇö Ticket #4455\n\n**Data Logger Issue:** \"Timestamps reset to 0 every ~65 seconds. Log shows: ..., 65534, 65535, 0, 1, 2, ... Post-crash analysis impossible.\"\n\n**Root Cause:** Timestamp stored as uint16_t (max 65535). At 1ms resolution = 65.5s before wrap. Needs uint32_t (~49 days).\n\n**Your Task:** Fix the timestamp data type.\n\n**Expected Output for 70000:** TS:70000 WRAP:NO',
++                        acceptance: ['Use uint32_t for timestamp', 'No wraparound'], deliverables: ['main.c'],
++                        inputSpec: 'Target timestamp in ms', outputSpec: 'TS:<value> WRAP:YES/NO',
++                        files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <stdint.h>\n\ntypedef struct {\n    // BUG: uint16_t wraps at 65535! Use uint32_t\n    uint16_t timestamp_ms;\n    uint16_t event_id;\n} LogEntry;\n\nvoid simulate_time(LogEntry* e, uint32_t target_ms) {\n    for (uint32_t i = 0; i < target_ms; i++) e->timestamp_ms++;\n}\n\nint main() {\n    uint32_t target; scanf(\"%u\", &target);\n    LogEntry entry = {0, 0};\n    simulate_time(&entry, target);\n    int wrapped = (entry.timestamp_ms != target);\n    printf(\"TS:%u WRAP:%s\\n\", entry.timestamp_ms, wrapped?\"YES\":\"NO\");\n    return 0;\n}' }],
++                        testCases: [{ name: 'Below wrap', stdin: '50000', expectedOutput: 'TS:50000 WRAP:NO' }, { name: 'Above wrap', stdin: '70000', expectedOutput: 'TS:70000 WRAP:NO' }]
++                    },
++
++                    {
++                        id: 'DBG-10', topicId: 'DEBUG_LAB', title: 'Temperature Reads 255 in Winter', difficulty: 'Advanced', points: 400,
++                        statement: '≡ƒÜ¿ PRODUCTION INCIDENT ΓÇö Ticket #2289\n\n**Warranty Claim (Nordic Region):** \"Display shows 255┬░C when outdoor temp is -1┬░C. Works in summer. All negative temps are wrong.\"\n\n**Root Cause:** Sensor returns signed int8_t (-128..+127). Code casts to uint8_t, converting -1ΓåÆ255, -5ΓåÆ251. Classic sign extension bug.\n\n**Your Task:** Fix the variable type so negative temperatures display correctly.\n\n**Expected Output for -5:** RAW:-5 TEMP:-5C STATUS:OK',
++                        acceptance: ['Use int8_t not uint8_t', 'Handle negative values'], deliverables: ['main.c'],
++                        inputSpec: 'Temperature (-40 to 85)', outputSpec: 'RAW:<val> TEMP:<val>C STATUS:OK/ERROR',
++                        files: [{ name: 'main.c', content: '#include <stdio.h>\n#include <stdint.h>\n\nint8_t sensor_read(int input) { return (int8_t)input; }\n\nint main() {\n    int input; scanf(\"%d\", &input);\n    int8_t raw = sensor_read(input);\n\n    // BUG: uint8_t loses sign! -1 becomes 255\n    uint8_t temp = (uint8_t)raw;\n\n    const char* status = (temp >= 0 && temp <= 85) ? \"OK\" : \"ERROR\";\n    printf(\"RAW:%d TEMP:%dC STATUS:%s\\n\", (int)raw, (int)temp, status);\n    return 0;\n}' }],
++                        testCases: [{ name: 'Positive', stdin: '25', expectedOutput: 'RAW:25 TEMP:25C STATUS:OK' }, { name: 'Negative (bug)', stdin: '-5', expectedOutput: 'RAW:-5 TEMP:-5C STATUS:OK' }, { name: 'Zero', stdin: '0', expectedOutput: 'RAW:0 TEMP:0C STATUS:OK' }]
++                    }
++
+@@ -2656,0 +2763,3 @@
++                                            if (window.setLogicAnalyzerState) {
++                                                window.setLogicAnalyzerState(pinState ? 1 : 0);
++                                            }
+@@ -2658 +2767 @@
+-                                                logs.push({ time: time(), text: '≡ƒÆí GPIO 25 (LED) turned ON', type: 'success' });
++                                                logs.push({ time: time(), text: '≡ƒÆí GPIO 25 (LED) transitioned to HIGH (1)', type: 'success' });
+@@ -2660 +2769 @@
+-                                                logs.push({ time: time(), text: '≡ƒÆí GPIO 25 (LED) turned OFF', type: 'info' });
++                                                logs.push({ time: time(), text: '≡ƒÆí GPIO 25 (LED) transitioned to LOW (0)', type: 'info' });
+@@ -3137,0 +3247,97 @@
++
++    <!-- Logic Analyzer Drawing Script -->
++    <script>
++        window.logicAnalyzerState = 0;
++        window.logicAnalyzerHistory = Array(100).fill(0);
++        window.logicAnalyzerInterval = null;
++
++        window.setLogicAnalyzerState = function (state) {
++            window.logicAnalyzerState = state;
++        };
++
++        window.startLogicAnalyzer = function () {
++            if (window.logicAnalyzerInterval) clearInterval(window.logicAnalyzerInterval);
++            window.logicAnalyzerHistory = Array(100).fill(0);
++            window.logicAnalyzerState = 0;
++
++            // Re-draw once immediately
++            window.drawLogicAnalyzer();
++
++            window.logicAnalyzerInterval = setInterval(() => {
++                window.logicAnalyzerHistory.push(window.logicAnalyzerState);
++                if (window.logicAnalyzerHistory.length > 100) {
++                    window.logicAnalyzerHistory.shift();
++                }
++                window.drawLogicAnalyzer();
++            }, 50); // 20 frames per second updates the sweep
++        };
++
++        window.stopLogicAnalyzer = function () {
++            if (window.logicAnalyzerInterval) {
++                clearInterval(window.logicAnalyzerInterval);
++                window.logicAnalyzerInterval = null;
++            }
++        };
++
++        window.drawLogicAnalyzer = function () {
++            const canvas = document.getElementById('logicAnalyzerCanvas');
++            if (!canvas) return; // Canvas might not be rendered by Alpine yet
++            const ctx = canvas.getContext('2d');
++
++            // Adjust resolution for High DPI displays
++            const rect = canvas.parentElement.getBoundingClientRect();
++            if (canvas.width !== rect.width || canvas.height !== rect.height) {
++                canvas.width = rect.width;
++                canvas.height = rect.height;
++            }
++
++            const width = canvas.width;
++            const height = canvas.height;
++
++            ctx.clearRect(0, 0, width, height);
++
++            // Draw Waveform
++            ctx.strokeStyle = '#22d3ee'; // cyan-400
++            ctx.lineWidth = 3;
++            ctx.shadowBlur = 12;
++            ctx.shadowColor = '#06b6d4'; // cyan-500
++            ctx.lineJoin = 'round';
++
++            ctx.beginPath();
++            const step = Math.max(width / 100, 1);
++            const margin = 20;
++            const drawHeight = height - (margin * 2);
++
++            let lastY = 0;
++            for (let i = 0; i < 100; i++) {
++                const val = window.logicAnalyzerHistory[i];
++                const x = i * step;
++                // 1 goes to top (margin), 0 goes to bottom (margin + drawHeight)
++                const y = margin + (val === 1 ? 0 : drawHeight);
++
++                if (i === 0) {
++                    ctx.moveTo(x, y);
++                } else {
++                    // Draw horizontal line to the new x position at the old y
++                    ctx.lineTo(x, lastY);
++                    // Draw vertical line if state changed
++                    if (y !== lastY) {
++                        ctx.lineTo(x, y);
++                    }
++                }
++                lastY = y;
++            }
++            // Draw the line to the end of the canvas
++            ctx.lineTo(width, lastY);
++            ctx.stroke();
++
++            // Glow effect for current state dot
++            const currentVal = window.logicAnalyzerHistory[99];
++            ctx.fillStyle = currentVal ? '#22d3ee' : '#64748b'; // cyan-400 or slate-500
++            ctx.shadowBlur = currentVal ? 15 : 0;
++            ctx.beginPath();
++            ctx.arc(width - 5, lastY, 5, 0, Math.PI * 2);
++            ctx.fill();
++            ctx.shadowBlur = 0; // Reset shadow for next frame
++        };
++    </script>

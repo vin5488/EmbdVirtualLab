@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VirtualLab | Admin Topic Control</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #0f172a;
+            --card: #1e293b;
+            --text: #f8fafc;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            background: var(--card);
+            padding: 2.5rem;
+            border-radius: 1rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            width: 100%;
+            max-width: 500px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        h2 {
+            margin-top: 0;
+            font-weight: 700;
+            font-size: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            color: #60a5fa;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .topic-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1rem;
+            border-radius: 0.5rem;
+            transition: all 0.2s;
+            margin-bottom: 0.5rem;
+        }
+
+        .topic-row:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .topic-info {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .topic-name {
+            font-size: 0.95rem;
+            font-weight: 500;
+        }
+
+        /* Toggle Switch Styling */
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 44px;
+            height: 24px;
+        }
+
+        .switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #475569;
+            transition: .4s;
+            border-radius: 24px;
+        }
+
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked+.slider {
+            background-color: var(--primary);
+        }
+
+        input:checked+.slider:before {
+            transform: translateX(20px);
+        }
+
+        .status-badge {
+            font-size: 0.7rem;
+            padding: 0.1rem 0.5rem;
+            border-radius: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            margin-left: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="container">
+        <h2><i class="fas fa-sliders"></i> Topic Access Control</h2>
+        <div id="topics-list">
+            <!-- Loading state -->
+            <div style="text-align:center; padding: 2rem; opacity: 0.5;">
+                <i class="fas fa-spinner fa-spin"></i> Loading configuration...
+            </div>
+        </div>
+        <div style="margin-top: 1.5rem; font-size: 0.8rem; color: #94a3b8; text-align: center;">
+            <i class="fas fa-info-circle"></i> Changes are saved automatically to topics.json
+        </div>
+    </div>
+
+    <script>
+        async function loadTopics() {
+            try {
+                const res = await fetch("/topics");
+                const topics = await res.json();
+                const container = document.getElementById("topics-list");
+                container.innerHTML = '';
+
+                Object.entries(topics).forEach(([name, enabled]) => {
+                    const row = document.createElement("div");
+                    row.className = 'topic-row';
+
+                    row.innerHTML = `
+                    <div class="topic-info">
+                        <span class="topic-name">${name}</span>
+                    </div>
+                    <label class="switch">
+                        <input type="checkbox" ${enabled ? 'checked' : ''} onchange="updateTopic('${name}', this.checked)">
+                        <span class="slider"></span>
+                    </label>
+                `;
+                    container.appendChild(row);
+                });
+            } catch (err) {
+                document.getElementById("topics-list").innerHTML = `<div style="color:#ef4444; padding:1rem; text-align:center;">Failed to load topics. Please check server.</div>`;
+            }
+        }
+
+        async function updateTopic(topic, enabled) {
+            try {
+                const res = await fetch("/update-topic", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ topic, enabled })
+                });
+                if (!res.ok) throw new Error('Update failed');
+                console.log(`Updated ${topic} to ${enabled}`);
+            } catch (err) {
+                alert('Error updating topic visibility: ' + err.message);
+                loadTopics(); // reload state
+            }
+        }
+
+        loadTopics();
+    </script>
+
+</body>
+
+</html>
