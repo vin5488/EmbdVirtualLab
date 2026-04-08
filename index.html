@@ -15,82 +15,194 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <!-- CodeMirror 6 for Syntax Highlighting -->
+    <script type="importmap">
+    {
+      "imports": {
+        "codemirror": "https://esm.sh/codemirror@6.0.1",
+        "@codemirror/view": "https://esm.sh/@codemirror/view@6",
+        "@codemirror/state": "https://esm.sh/@codemirror/state@6",
+        "@codemirror/language": "https://esm.sh/@codemirror/language@6",
+        "@codemirror/commands": "https://esm.sh/@codemirror/commands@6",
+        "@codemirror/lang-cpp": "https://esm.sh/@codemirror/lang-cpp@6",
+        "@codemirror/theme-one-dark": "https://esm.sh/@codemirror/theme-one-dark@6",
+        "@codemirror/autocomplete": "https://esm.sh/@codemirror/autocomplete@6",
+        "@codemirror/lint": "https://esm.sh/@codemirror/lint@6",
+        "@codemirror/search": "https://esm.sh/@codemirror/search@6",
+        "@lezer/common": "https://esm.sh/@lezer/common@1",
+        "@lezer/highlight": "https://esm.sh/@lezer/highlight@1",
+        "@lezer/lr": "https://esm.sh/@lezer/lr@1",
+        "@lezer/cpp": "https://esm.sh/@lezer/cpp@1"
+      }
+    }
+    </script>
     <script type="module">
-        import { EditorView, basicSetup } from "https://cdn.jsdelivr.net/npm/codemirror@6.0.1/dist/index.js"
-        import { cpp } from "https://cdn.jsdelivr.net/npm/@codemirror/lang-cpp@6.0.2/dist/index.js"
-        import { oneDark } from "https://cdn.jsdelivr.net/npm/@codemirror/theme-one-dark@6.1.2/dist/index.js"
+        import { EditorView, basicSetup } from "codemirror"
+        import { cpp } from "@codemirror/lang-cpp"
+        import { oneDark } from "@codemirror/theme-one-dark"
         window.CodeMirrorModules = { EditorView, basicSetup, cpp, oneDark };
     </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Inter:wght@300;400;600;700&display=swap');
-        body { font-family: 'Inter', sans-serif; }
-        .code-font { font-family: 'Fira Code', monospace; }
-        [x-cloak] { display: none !important; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .wiring-wire { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
-        .line-numbers { overflow-y: hidden; overflow-x: hidden; min-width: 40px; }
-        .line-numbers div { user-select: none; }
-        #code-editor { height: 100%; font-size: 14px; }
-        #code-editor .cm-editor { height: 100%; background: transparent !important; }
-        #code-editor .cm-scroller { font-family: 'Fira Code', monospace; line-height: 1.6; }
-        #code-editor .cm-gutters { background: rgba(15,23,42,0.5) !important; border-right: 1px solid #1e293b !important; }
 
-        /* ── Problem Statement Animations ── */
-        @keyframes ps-fade-up { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes ps-fade-in { from { opacity:0; } to { opacity:1; } }
-        @keyframes ps-slide-right { from { opacity:0; transform:translateX(-16px); } to { opacity:1; transform:translateX(0); } }
-        @keyframes ps-pop { 0%{opacity:0;transform:scale(0.88);} 60%{transform:scale(1.04);} 100%{opacity:1;transform:scale(1);} }
-        @keyframes badge-glow { 0%,100%{box-shadow:0 0 0 0 rgba(59,130,246,0);} 50%{box-shadow:0 0 14px 4px rgba(59,130,246,0.4);} }
-        @keyframes crit-check { 0%{opacity:0;transform:scale(0) rotate(-30deg);} 70%{transform:scale(1.2) rotate(5deg);} 100%{opacity:1;transform:scale(1) rotate(0);} }
-        @keyframes shimmer { 0%{background-position:-400px 0;} 100%{background-position:400px 0;} }
-        @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.45;transform:scale(1.5);} }
-        @keyframes title-reveal { 0%{opacity:0;letter-spacing:0.25em;} 100%{opacity:1;letter-spacing:normal;} }
-        @keyframes underline-grow { from{width:0;} to{width:100%;} }
-        @keyframes float-chip { 0%,100%{transform:translateY(0px);} 50%{transform:translateY(-5px);} }
-        @keyframes count-up { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:translateY(0);} }
-
-        .ps-header   { animation: ps-fade-in 0.4s ease both; }
-        .ps-title    { animation: title-reveal 0.55s ease both 0.05s; }
-        .ps-badge-id   { animation: ps-pop 0.4s ease both 0.08s; }
-        .ps-badge-diff { animation: ps-pop 0.4s ease both 0.16s; }
-        .ps-points-badge { animation: ps-pop 0.4s ease both 0.24s; }
-        .ps-statement  { animation: ps-fade-up 0.5s ease both 0.15s; }
-        .ps-criteria   { animation: ps-fade-up 0.5s ease both 0.25s; }
-        .ps-sidebar    { animation: ps-slide-right 0.5s ease both 0.3s; }
-        .ps-inout-card { animation: ps-fade-up 0.45s ease both 0.35s; }
-        .ps-tips       { animation: ps-fade-up 0.5s ease both 0.42s; }
-
-        .ps-crit-item { opacity:0; animation: ps-fade-up 0.35s ease forwards; }
-        .ps-crit-icon { animation: crit-check 0.4s ease both; }
-        .ps-point-badge { animation: badge-glow 2.2s ease-in-out 1.2s infinite; }
-        .ps-live-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
-        .ps-float-icon { animation: float-chip 3s ease-in-out infinite; }
-
-        .ps-shimmer-card { position:relative; overflow:hidden; }
-        .ps-shimmer-card::after {
-            content:''; position:absolute; top:0; left:-100%; width:60%; height:100%;
-            background:linear-gradient(90deg,transparent,rgba(255,255,255,0.04),transparent);
-            animation: shimmer 2.2s ease 0.6s 1;
+        body {
+            font-family: 'Inter', sans-serif;
         }
-        .ps-title-underline {
-            display:block; height:2px; background:linear-gradient(90deg,#3b82f6,#8b5cf6,transparent);
-            border-radius:2px; margin-top:6px;
-            animation: underline-grow 0.6s ease both 0.5s;
-            width:0;
+
+        /* ── Block text selection for candidates ── */
+        body.candidate-mode *:not(textarea):not(input):not(pre):not(code) {
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            user-select: none;
         }
-        .ps-difficulty-fill { width:0; transition: width 0.9s cubic-bezier(0.34,1.56,0.64,1) 0.7s; }
-        .ps-tag { animation: ps-pop 0.35s ease both; }
-        .ps-count { animation: count-up 0.4s ease both 0.6s; }
+        body.candidate-mode textarea,
+        body.candidate-mode .cm-editor {
+            -webkit-user-select: text;
+            user-select: text;
+        }
+
+
+        .ticker-track {
+            display: inline-flex;
+            animation: ticker-scroll 60s linear infinite;
+        }
+        .ticker-track:hover {
+            animation-play-state: paused;
+        }
+        @keyframes ticker-scroll {
+            0%   { transform: translateX(0); }
+            100% { transform: translateX(-50%); }
+        }
+
+        .code-font {
+            font-family: 'Fira Code', monospace;
+        }
+
+        [x-cloak] {
+            display: none !important;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #0f172a;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #334155;
+            border-radius: 10px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .wiring-wire {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Line numbers styling */
+        .line-numbers {
+            overflow-y: hidden;
+            overflow-x: hidden;
+            min-width: 40px;
+        }
+
+        .line-numbers div {
+            user-select: none;
+        }
+
+        /* CodeMirror styling */
+        #code-editor {
+            height: 100%;
+            font-size: 14px;
+        }
+
+        #code-editor .cm-editor {
+            height: 100%;
+            background: transparent !important;
+        }
+
+        #code-editor .cm-scroller {
+            font-family: 'Fira Code', monospace;
+            line-height: 1.6;
+        }
+
+        #code-editor .cm-gutters {
+            background: rgba(15, 23, 42, 0.5) !important;
+            border-right: 1px solid #1e293b !important;
+        }
     </style>
+<script>
+        // ── Visteon-only access enforcement ──────────────────────
+        window.isVisteonUser = function(email) {
+            return typeof email === 'string' && email.toLowerCase().endsWith('@visteon.com');
+        };
+        // Admin/staff accounts (skill-lync.com) bypass the visteon-only restriction
+        window.isAllowedUser = function(email) {
+            if (typeof email !== 'string') return false;
+            const e = email.toLowerCase();
+            return e.endsWith('@visteon.com') || e.endsWith('@skill-lync.com');
+        };
+    </script>
 </head>
 
-<body class="bg-slate-950 text-slate-200 h-screen overflow-hidden" x-data="labApp()">
+<body class="bg-slate-950 text-slate-200 h-screen overflow-hidden" x-data="labApp()"
+    :class="{ 'candidate-mode': isLoggedIn && user.role === 'candidate' }">
 
     <!-- 1. Authentication Gateway -->
-    <div x-show="!isLoggedIn" class="fixed inset-0 z-[100] bg-slate-950 flex items-center justify-center p-4">
+    <div x-show="!isLoggedIn" class="fixed inset-0 z-[100] bg-slate-950 flex flex-col items-stretch justify-start">
+<!-- ── How-To Ticker Ribbon ── -->
+        <div class="w-full bg-gradient-to-r from-blue-900/80 via-slate-900/90 to-blue-900/80 border-b border-blue-700/40 py-2.5 overflow-hidden flex items-center gap-3 shrink-0">
+            <div class="shrink-0 flex items-center gap-2 px-4 border-r border-blue-700/40">
+                <i class="fas fa-info-circle text-blue-400 text-xs animate-pulse"></i>
+                <span class="text-[10px] font-black text-blue-400 uppercase tracking-widest whitespace-nowrap">How It Works</span>
+            </div>
+            <div class="overflow-hidden flex-1 relative">
+                <div class="ticker-track flex gap-16 items-center whitespace-nowrap">
+                    <template x-for="item in [
+                        { icon: 'fa-envelope', color: 'text-blue-400',  text: 'Step 1 — Enter your Visteon email and click Generate Access Code' },
+                        { icon: 'fa-key',      color: 'text-amber-400', text: 'Step 2 — Check your inbox for a one-time OTP and enter it here' },
+                        { icon: 'fa-book-open',color: 'text-emerald-400',text: 'Step 3 — Select a topic from the dashboard to view your assignment problems' },
+                        { icon: 'fa-code',     color: 'text-purple-400', text: 'Step 4 — Open a problem, read the statement, and write your C code in the editor' },
+                        { icon: 'fa-clock',    color: 'text-orange-400', text: 'Step 5 — Each problem has a 15-minute timer. Finish early to bank time for later problems' },
+                        { icon: 'fa-play-circle', color: 'text-teal-400', text: 'Step 6 — Click Compile & Run Tests to validate your solution against test cases' },
+                        { icon: 'fa-paper-plane', color: 'text-pink-400', text: 'Step 7 — Once tests pass, click Submit Assignment to record your submission' },
+                        { icon: 'fa-shield-alt', color: 'text-red-400',  text: '⚠ Do NOT copy-paste or switch tabs — all activity is monitored and logged' },
+                        { icon: 'fa-check-double', color: 'text-emerald-400', text: 'Tip — You can move to the next problem anytime; unused time carries forward' }
+                    ]" :key="item.text">
+                        <span class="inline-flex items-center gap-2 text-[11px] text-slate-300 font-medium">
+                            <i class="fas text-xs shrink-0" :class="[item.icon, item.color]"></i>
+                            <span x-text="item.text"></span>
+                        </span>
+                        <span class="text-blue-700/60 text-xs shrink-0">◆</span>
+                    </template>
+                    <!-- duplicate for seamless loop -->
+                    <template x-for="item in [
+                        { icon: 'fa-envelope', color: 'text-blue-400',  text: 'Step 1 — Enter your Visteon email and click Generate Access Code' },
+                        { icon: 'fa-key',      color: 'text-amber-400', text: 'Step 2 — Check your inbox for a one-time OTP and enter it here' },
+                        { icon: 'fa-book-open',color: 'text-emerald-400',text: 'Step 3 — Select a topic from the dashboard to view your assignment problems' },
+                        { icon: 'fa-code',     color: 'text-purple-400', text: 'Step 4 — Open a problem, read the statement, and write your C code in the editor' },
+                        { icon: 'fa-clock',    color: 'text-orange-400', text: 'Step 5 — Each problem has a 15-minute timer. Finish early to bank time for later problems' },
+                        { icon: 'fa-play-circle', color: 'text-teal-400', text: 'Step 6 — Click Compile & Run Tests to validate your solution against test cases' },
+                        { icon: 'fa-paper-plane', color: 'text-pink-400', text: 'Step 7 — Once tests pass, click Submit Assignment to record your submission' },
+                        { icon: 'fa-shield-alt', color: 'text-red-400',  text: '⚠ Do NOT copy-paste or switch tabs — all activity is monitored and logged' },
+                        { icon: 'fa-check-double', color: 'text-emerald-400', text: 'Tip — You can move to the next problem anytime; unused time carries forward' }
+                    ]" :key="'dup-' + item.text">
+                        <span class="inline-flex items-center gap-2 text-[11px] text-slate-300 font-medium">
+                            <i class="fas text-xs shrink-0" :class="[item.icon, item.color]"></i>
+                            <span x-text="item.text"></span>
+                        </span>
+                        <span class="text-blue-700/60 text-xs shrink-0">◆</span>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+        
+<div class="flex-1 flex items-center justify-center p-4 overflow-y-auto">
         <div class="max-w-md w-full">
             <div class="text-center mb-10">
                 <div class="inline-flex items-center gap-3 mb-4">
@@ -190,6 +302,7 @@
         </div>
     </div>
 
+    </div>
     <!-- 2. Main Lab Interface -->
     <div x-show="isLoggedIn" class="h-screen flex flex-col" x-cloak>
         <!-- Header -->
@@ -2875,6 +2988,99 @@
                             EditorView.updateListener.of((update) => {
                                 if (update.docChanged && this.activeFiles[this.activeFileIdx]) {
                                     this.activeFiles[this.activeFileIdx].content = update.state.doc.toString();
+                                }
+                            })
+                        ],
+                        parent: container
+                    });
+                },
+
+                updateEditorContent() {
+                    if (this.editorView && this.activeFiles[this.activeFileIdx]) {
+                        const currentContent = this.editorView.state.doc.toString();
+                        const newContent = this.activeFiles[this.activeFileIdx].content;
+                        if (currentContent !== newContent) {
+                            this.editorView.dispatch({
+                                changes: { from: 0, to: currentContent.length, insert: newContent }
+                            });
+                        }
+                    }
+                },
+
+                getLineNumbers() {
+                    if (!this.activeFiles[this.activeFileIdx]) return '';
+                    const content = this.activeFiles[this.activeFileIdx].content || '';
+                    const lines = content.split('\n').length;
+                    let html = '';
+                    for (let i = 1; i <= lines; i++) {
+                        const errorClass = this.errorLines && this.errorLines.includes(i) ? 'text-red-500 font-bold' : '';
+                        html += `<div class="leading-relaxed ${errorClass}">${i}</div>`;
+                    }
+                    return html;
+                },
+
+                updateLineNumbers() {
+                    // Trigger re-render of line numbers
+                    this.$nextTick(() => {
+                        const lineNumbersDiv = document.querySelector('.line-numbers');
+                        if (lineNumbersDiv) {
+                            lineNumbersDiv.innerHTML = this.getLineNumbers();
+                        }
+                    });
+                },
+
+                syncScroll(event) {
+                    const lineNumbersDiv = document.querySelector('.line-numbers');
+                    if (lineNumbersDiv) {
+                        lineNumbersDiv.scrollTop = event.target.scrollTop;
+                    }
+                },
+
+                initCodeMirror() {
+                    // Wait for CodeMirror modules to load
+                    const checkModules = setInterval(() => {
+                        if (window.CodeMirrorModules) {
+                            clearInterval(checkModules);
+                            this.createEditor();
+                        }
+                    }, 100);
+                },
+
+                createEditor() {
+                    const { EditorView, basicSetup, cpp, oneDark } = window.CodeMirrorModules;
+                    const container = document.getElementById('code-editor');
+
+                    if (!container || this.editorView) return;
+
+                    // Add boilerplate if content is empty
+                    if (!this.activeFiles[this.activeFileIdx]?.content || this.activeFiles[this.activeFileIdx].content.trim() === '') {
+                        this.activeFiles[this.activeFileIdx].content = `#include <stdio.h>\n\nint main() {\n    // Write your code here\n    \n    return 0;\n}\n`;
+                    }
+
+                    // Create CodeMirror editor
+                    this.editorView = new EditorView({
+                        doc: this.activeFiles[this.activeFileIdx]?.content || '',
+                        extensions: [
+                            basicSetup,
+                            cpp(),
+                            oneDark,
+                            EditorView.lineWrapping,
+                            EditorView.editable.of(true),
+                            EditorView.updateListener.of((update) => {
+                                if (update.docChanged && this.activeFiles[this.activeFileIdx]) {
+                                    this.activeFiles[this.activeFileIdx].content = update.state.doc.toString();
+                                    // Debounced auto-save: 2s after user stops typing
+                                    clearTimeout(this._autoSaveTimer);
+                                    this._autoSaveTimer = setTimeout(() => {
+                                        if (this.isLoggedIn && this.activeProject) {
+                                            // Save to localStorage immediately
+                                            localStorage.setItem('code_' + this.activeProject.id, JSON.stringify(this.activeFiles));
+                                            // Save to server in background
+                                            const isSolved = this.solvedProjectIds.includes(this.activeProject.id);
+                                            this._saveProgressToServer(this.activeProject.id, this.activeFiles, isSolved);
+                                            this._showAutoSaveIndicator();
+                                        }
+                                    }, 2000);
                                 }
                             })
                         ],
