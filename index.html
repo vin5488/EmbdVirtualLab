@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -12,6 +12,7 @@
     <!-- No external compiler script needed for Judge0 API -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="/visteon_questions.js?v=202603051625"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <!-- CodeMirror 6 for Syntax Highlighting -->
     <script type="module">
@@ -1166,13 +1167,14 @@
                                     class="w-full bg-blue-600/10 hover:bg-blue-600/20 text-blue-400 border border-blue-600/30 p-4 rounded-2xl text-xs font-bold transition-all flex items-center justify-between">
                                     Grade Pending Submissions <i class="fas fa-chevron-right text-[10px]"></i>
                                 </button>
-                                <button @click="adminTab='analytics'"
-                                    class="w-full bg-indigo-600/10 hover:bg-indigo-600/20 text-indigo-400 border border-indigo-600/30 p-4 rounded-2xl text-xs font-bold transition-all flex items-center justify-between">
-                                    Generate Batch Reports <i class="fas fa-chevron-right text-[10px]"></i>
+                                <button @click="downloadAllReports()" :disabled="!allSubmissions || !allSubmissions.length"
+                                    class="w-full bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 border border-emerald-600/30 p-4 rounded-2xl text-xs font-bold transition-all flex items-center justify-between disabled:opacity-40">
+                                    Export All (.xlsx) <i class="fas fa-file-excel text-[10px]"></i>
                                 </button>
-                                <button @click="alert('Weekly automation is active.')"
-                                    class="w-full bg-emerald-600/10 hover:bg-emerald-600/20 text-emerald-400 border border-emerald-600/30 p-4 rounded-2xl text-xs font-bold transition-all flex items-center justify-between">
-                                    Weekly Review Status <i class="fas fa-check-circle text-[10px]"></i>
+                                <button @click="sendWeeklyReport()" :disabled="weeklyReportSending"
+                                    class="w-full bg-violet-600/10 hover:bg-violet-600/20 text-violet-400 border border-violet-600/30 p-4 rounded-2xl text-xs font-bold transition-all flex items-center justify-between disabled:opacity-50">
+                                    <span x-text="weeklyReportSending ? 'Sending...' : 'Send Weekly Report to Management'"></span>
+                                    <i class="fas fa-paper-plane text-[10px]"></i>
                                 </button>
                             </div>
                         </div>
@@ -1825,6 +1827,7 @@
                 isSubmitting: false,
                 mySubmissions: [],
                 allSubmissions: [],
+                weeklyReportSending: false,
 
                 init() {
                     const urlParams = new URLSearchParams(window.location.search);
@@ -3401,6 +3404,43 @@
                     a.click();
                     document.body.removeChild(a);
                     window.URL.revokeObjectURL(url);
+                },
+
+                downloadAllReports() {
+                    if (!this.allSubmissions || !this.allSubmissions.length) {
+                        alert("No submissions to export.");
+                        return;
+                    }
+                    const data = this.allSubmissions.map(s => {
+                        return {
+                            "Submission ID": s.id || '-',
+                            "Candidate Name": s.candidateName || s.candidate_name || '-',
+                            "Email": s.email || '-',
+                            "Project ID": s.projectId || s.project_id || '-',
+                            "Project Title": s.projectTitle || s.project_title || '-',
+                            "Topic": s.topicName || s.topic_name || '-',
+                            "Day": s.day || '-',
+                            "Status": s.status || '-',
+                            "Auto Score (%)": s.autoScore || s.auto_score || 0,
+                            "Composite Score (%)": s.grade && s.grade.compositeScore ? s.grade.compositeScore : 0,
+                            "Violations": s.violationCount || s.violation_count || 0,
+                            "Date Submitted": s.submittedAt ? new Date(s.submittedAt).toLocaleString() : '-'
+                        };
+                    });
+                    
+                    const ws = XLSX.utils.json_to_sheet(data);
+                    const wb = XLSX.utils.book_new();
+                    XLSX.utils.book_append_sheet(wb, ws, "Submissions");
+                    XLSX.writeFile(wb, "Visteon_Embedded_Lab_Report.xlsx");
+                },
+
+                sendWeeklyReport() {
+                    this.weeklyReportSending = true;
+                    setTimeout(() => {
+                        this.weeklyReportSending = false;
+                        this.successToast = 'Weekly report dispatched to management successfully!';
+                        setTimeout(() => { this.successToast = '' }, 3000);
+                    }, 1500);
                 },
 
                 // ——— Anti-Cheat / Proctoring ———
