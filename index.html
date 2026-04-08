@@ -1511,7 +1511,7 @@
                                                     shows strong aptitude in <span class="text-blue-400 font-bold"
                                                         x-text="c.strong[0]"></span>. Suggested roadmap: Advanced
                                                     AUTOSAR modules."</p>
-                                                <button
+                                                <button @click="generateReport(c)"
                                                     class="text-[10px] font-black text-blue-400 hover:text-blue-300 uppercase tracking-widest flex items-center gap-2 mt-4">
                                                     <i class="fas fa-file-pdf"></i> Generate Evaluation Dossier
                                                 </button>
@@ -3441,6 +3441,33 @@
                         this.successToast = 'Weekly report dispatched to management successfully!';
                         setTimeout(() => { this.successToast = '' }, 3000);
                     }, 1500);
+                },
+
+                generateReport(candidate) {
+                    const reportContent = `Evaluation Dossier - ${candidate.name}
+--------------------------------------------------
+Email: ${candidate.email}
+Completed Assignments: ${candidate.completed || 0}
+Hours Logged: ${candidate.hours || 0}
+Progress: ${candidate.progress || 0}%
+
+Strong Areas: ${candidate.strong && candidate.strong.length ? candidate.strong.join(', ') : 'None identified'}
+Weak Areas: ${candidate.weak && candidate.weak.length ? candidate.weak.join(', ') : 'None identified'}
+
+Generated from SkillLync VirtualLab System.`;
+
+                    const blob = new Blob([reportContent], { type: 'text/plain' });
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `Dossier_${candidate.name.replace(/\s+/g, '_')}.txt`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                    
+                    this.successToast = `Dossier for ${candidate.name} downloaded successfully!`;
+                    setTimeout(() => { this.successToast = '' }, 3000);
                 },
 
                 // ——— Anti-Cheat / Proctoring ———
