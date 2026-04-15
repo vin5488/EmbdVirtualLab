@@ -134,6 +134,54 @@
             background: rgba(15, 23, 42, 0.5) !important;
             border-right: 1px solid #1e293b !important;
         }
+
+        /* ── Problem Statement Animations ── */
+        @keyframes ps-fade-up { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes ps-fade-in { from { opacity:0; } to { opacity:1; } }
+        @keyframes ps-slide-right { from { opacity:0; transform:translateX(-16px); } to { opacity:1; transform:translateX(0); } }
+        @keyframes ps-pop { 0%{opacity:0;transform:scale(0.88);} 60%{transform:scale(1.04);} 100%{opacity:1;transform:scale(1);} }
+        @keyframes badge-glow { 0%,100%{box-shadow:0 0 0 0 rgba(59,130,246,0);} 50%{box-shadow:0 0 14px 4px rgba(59,130,246,0.4);} }
+        @keyframes crit-check { 0%{opacity:0;transform:scale(0) rotate(-30deg);} 70%{transform:scale(1.2) rotate(5deg);} 100%{opacity:1;transform:scale(1) rotate(0);} }
+        @keyframes shimmer { 0%{background-position:-400px 0;} 100%{background-position:400px 0;} }
+        @keyframes pulse-dot { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.45;transform:scale(1.5);} }
+        @keyframes title-reveal { 0%{opacity:0;letter-spacing:0.25em;} 100%{opacity:1;letter-spacing:normal;} }
+        @keyframes underline-grow { from{width:0;} to{width:100%;} }
+        @keyframes float-chip { 0%,100%{transform:translateY(0px);} 50%{transform:translateY(-5px);} }
+        @keyframes count-up { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:translateY(0);} }
+
+        .ps-header   { animation: ps-fade-in 0.4s ease both; }
+        .ps-title    { animation: title-reveal 0.55s ease both 0.05s; }
+        .ps-badge-id   { animation: ps-pop 0.4s ease both 0.08s; }
+        .ps-badge-diff { animation: ps-pop 0.4s ease both 0.16s; }
+        .ps-points-badge { animation: ps-pop 0.4s ease both 0.24s; }
+        .ps-statement  { animation: ps-fade-up 0.5s ease both 0.15s; }
+        .ps-criteria   { animation: ps-fade-up 0.5s ease both 0.25s; }
+        .ps-sidebar    { animation: ps-slide-right 0.5s ease both 0.3s; }
+        .ps-inout-card { animation: ps-fade-up 0.45s ease both 0.35s; }
+        .ps-tips       { animation: ps-fade-up 0.5s ease both 0.42s; }
+
+        .ps-crit-item { opacity:0; animation: ps-fade-up 0.35s ease forwards; }
+        .ps-crit-icon { animation: crit-check 0.4s ease both; }
+        .ps-point-badge { animation: badge-glow 2.2s ease-in-out 1.2s infinite; }
+        .ps-live-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
+        .ps-float-icon { animation: float-chip 3s ease-in-out infinite; }
+
+        .ps-shimmer-card { position:relative; overflow:hidden; }
+        .ps-shimmer-card::after {
+            content:''; position:absolute; top:0; left:-100%; width:60%; height:100%;
+            background:linear-gradient(90deg,transparent,rgba(255,255,255,0.04),transparent);
+            animation: shimmer 2.2s ease 0.6s 1;
+        }
+        .ps-title-underline {
+            display:block; height:2px; background:linear-gradient(90deg,#3b82f6,#8b5cf6,transparent);
+            border-radius:2px; margin-top:6px;
+            animation: underline-grow 0.6s ease both 0.5s;
+            width:0;
+        }
+        .ps-difficulty-fill { width:0; transition: width 0.9s cubic-bezier(0.34,1.56,0.64,1) 0.7s; }
+        .ps-tag { animation: ps-pop 0.35s ease both; }
+        .ps-count { animation: count-up 0.4s ease both 0.6s; }
+
     </style>
     <script>
         // ── Visteon-only access enforcement ──────────────────────
@@ -351,6 +399,14 @@
                                 :class="currentView === 'my_submissions' ? 'text-emerald-400 border-b-2 border-emerald-400' : 'text-slate-500'"
                                 class="px-2 py-4 text-xs font-bold uppercase tracking-widest transition-all">My
                                 Submissions</button>
+                            <button @click="currentView = 'hackathon_arena'"
+                                :class="currentView === 'hackathon_arena' ? 'text-purple-400 border-b-2 border-purple-400' : 'text-slate-500'"
+                                class="px-2 py-4 text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1.5">
+                                <i class="fas fa-bolt text-purple-400" style="font-size:10px"></i>Hackathon</button>
+                            <button @click="currentView = 'leaderboard'; loadLeaderboard()"
+                                :class="currentView === 'leaderboard' ? 'text-amber-400 border-b-2 border-amber-400' : 'text-slate-500'"
+                                class="px-2 py-4 text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1.5">
+                                <i class="fas fa-trophy text-amber-400" style="font-size:10px"></i>Leaderboard</button>
                         </div>
                         <div
                             class="hidden lg:flex items-center gap-4 bg-slate-950/50 px-4 py-1.5 rounded-full border border-slate-800">
@@ -374,6 +430,11 @@
                             :class="currentView === 'admin_dashboard' ? 'text-blue-400 border-b-2 border-blue-400' : 'text-slate-500'"
                             class="px-2 py-4 text-xs font-bold uppercase tracking-widest transition-all">
                             Admin Command Center
+                        </button>
+                        <button @click="currentView = 'hackathon_control'"
+                            :class="currentView === 'hackathon_control' ? 'text-purple-400 border-b-2 border-purple-400' : 'text-slate-500'"
+                            class="px-2 py-4 text-xs font-bold uppercase tracking-widest transition-all flex items-center gap-1.5">
+                            <i class="fas fa-bolt text-purple-400" style="font-size:10px"></i> Hackathon Control
                         </button>
                     </div>
                 </template>
@@ -652,77 +713,174 @@
 
                         <!-- Problem View -->
                         <div x-show="wsTab === 'problem'"
-                            class="absolute inset-0 overflow-y-auto p-10 prose prose-invert max-w-none">
-                            <div class="flex items-center justify-between mb-8">
-                                <h2 class="text-3xl font-black text-white m-0" x-text="activeProject.title"></h2>
-                                <div class="flex gap-2">
-                                    <span
-                                        class="bg-blue-600/20 text-blue-400 px-3 py-1 rounded-full text-[10px] font-bold border border-blue-600/30"
-                                        x-text="activeProject.id"></span>
-                                    <span
-                                        class="bg-slate-800 text-slate-400 px-3 py-1 rounded-full text-[10px] font-bold uppercase"
-                                        x-text="activeProject.difficulty"></span>
-                                </div>
-                            </div>
+                            class="absolute inset-0 overflow-y-auto custom-scrollbar"
+                            style="background: linear-gradient(135deg, #020817 0%, #0a1628 50%, #020817 100%);">
 
-                            <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
-                                <div class="lg:col-span-2 space-y-8">
-                                    <div class="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-xl">
-                                        <h4 class="text-blue-500 text-xs font-black uppercase tracking-widest mb-4">
-                                            Detailed Problem Statement</h4>
-                                        <p class="text-slate-300 leading-relaxed text-sm whitespace-pre-line"
-                                            x-text="activeProject.statement"></p>
-                                    </div>
+                            <!-- Animated top accent bar -->
+                            <div style="height:3px; background:linear-gradient(90deg,#3b82f6,#8b5cf6,#06b6d4); animation:underline-grow 0.8s ease both;"></div>
 
-                                    <div class="bg-slate-900 p-8 rounded-3xl border border-slate-800 shadow-xl">
-                                        <h4 class="text-emerald-500 text-xs font-black uppercase tracking-widest mb-6">
-                                            Acceptance Criteria</h4>
-                                        <ul class="space-y-4 m-0 p-0">
-                                            <template x-for="crit in activeProject.acceptance" :key="crit">
-                                                <li class="flex items-start gap-3 text-sm text-slate-400">
-                                                    <i class="fas fa-check-circle text-emerald-500 mt-1"></i>
-                                                    <span x-text="crit"></span>
-                                                </li>
-                                            </template>
-                                        </ul>
-                                    </div>
-                                </div>
+                            <div class="p-8 max-w-6xl mx-auto">
 
-                                <div class="space-y-6">
-                                    <div class="bg-slate-900 p-6 rounded-3xl border border-slate-800">
-                                        <h4 class="text-slate-500 text-xs font-black uppercase mb-4">SDLC Deliverables
-                                        </h4>
-                                        <div class="space-y-3">
-                                            <template x-for="del in activeProject.deliverables" :key="del">
-                                                <div class="flex items-center gap-2 text-xs text-slate-300">
-                                                    <i class="fas fa-file-code text-blue-400"></i>
-                                                    <span x-text="del"></span>
-                                                </div>
-                                            </template>
+                                <!-- Header row -->
+                                <div class="ps-header flex items-start justify-between mb-8 gap-4">
+                                    <div class="flex-1 min-w-0">
+                                        <!-- Floating chip icon -->
+                                        <div class="flex items-center gap-3 mb-3">
+                                            <div class="ps-float-icon w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
+                                                style="background:linear-gradient(135deg,#1d4ed8,#7c3aed); box-shadow:0 0 18px rgba(99,102,241,0.4);">
+                                                <i class="fas fa-microchip text-white text-sm"></i>
+                                            </div>
+                                            <span class="text-xs font-bold uppercase tracking-widest text-slate-500">Problem Statement</span>
+                                            <span class="ps-live-dot w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>
+                                        </div>
+                                        <!-- Title with underline animation -->
+                                        <div>
+                                            <h2 class="ps-title text-3xl font-black text-white leading-tight m-0" x-text="activeProject.title"></h2>
+                                            <span class="ps-title-underline"></span>
                                         </div>
                                     </div>
-                                    <div class="bg-slate-900 p-6 rounded-3xl border border-slate-800">
-                                        <h4 class="text-slate-500 text-xs font-black uppercase mb-4">Input/Output Spec
-                                        </h4>
-                                        <div class="space-y-4">
-                                            <div>
-                                                <div class="text-[10px] font-bold text-slate-600 uppercase mb-1">Inputs
-                                                </div>
-                                                <div class="bg-slate-950 p-2 rounded text-[10px] text-slate-400 font-mono"
-                                                    x-text="activeProject.inputSpec"></div>
+                                    <!-- Badges -->
+                                    <div class="flex flex-col gap-2 items-end shrink-0 mt-1">
+                                        <span class="ps-badge-id px-3 py-1 rounded-full text-[10px] font-black border"
+                                            style="background:rgba(59,130,246,0.12);color:#60a5fa;border-color:rgba(59,130,246,0.3);"
+                                            x-text="activeProject.id"></span>
+                                        <span class="ps-badge-diff px-3 py-1 rounded-full text-[10px] font-black uppercase"
+                                            style="background:rgba(100,116,139,0.2);color:#94a3b8;"
+                                            x-text="activeProject.difficulty"></span>
+                                        <span class="ps-points-badge ps-point-badge px-3 py-1 rounded-full text-[10px] font-black flex items-center gap-1"
+                                            style="background:rgba(234,179,8,0.12);color:#facc15;border:1px solid rgba(234,179,8,0.3);">
+                                            <i class="fas fa-star text-[9px]"></i>
+                                            <span x-text="activeProject.points"></span> pts
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <!-- Main 2-col grid -->
+                                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+                                    <!-- Left: Statement + Criteria -->
+                                    <div class="lg:col-span-2 space-y-5">
+
+                                        <!-- Statement card -->
+                                        <div class="ps-statement ps-shimmer-card rounded-2xl border p-7"
+                                            style="background:rgba(15,23,42,0.8);border-color:rgba(59,130,246,0.2);">
+                                            <div class="flex items-center gap-2 mb-4">
+                                                <div class="w-1 h-5 rounded-full" style="background:linear-gradient(180deg,#3b82f6,#8b5cf6);"></div>
+                                                <h4 class="text-blue-400 text-xs font-black uppercase tracking-widest m-0">Detailed Problem Statement</h4>
                                             </div>
-                                            <div>
-                                                <div class="text-[10px] font-bold text-slate-600 uppercase mb-1">Outputs
-                                                </div>
-                                                <div class="bg-slate-950 p-2 rounded text-[10px] text-slate-400 font-mono"
-                                                    x-text="activeProject.outputSpec"></div>
+                                            <p class="text-slate-300 leading-relaxed text-sm whitespace-pre-line m-0"
+                                                x-text="activeProject.statement"></p>
+                                        </div>
+
+                                        <!-- Acceptance Criteria card -->
+                                        <div class="ps-criteria rounded-2xl border p-7"
+                                            style="background:rgba(15,23,42,0.8);border-color:rgba(16,185,129,0.2);">
+                                            <div class="flex items-center gap-2 mb-5">
+                                                <div class="w-1 h-5 rounded-full" style="background:linear-gradient(180deg,#10b981,#06b6d4);"></div>
+                                                <h4 class="text-emerald-400 text-xs font-black uppercase tracking-widest m-0">Acceptance Criteria</h4>
+                                                <span class="ps-count ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full"
+                                                    style="background:rgba(16,185,129,0.12);color:#34d399;"
+                                                    x-text="activeProject.acceptance.length + ' checks'"></span>
+                                            </div>
+                                            <ul class="space-y-3 m-0 p-0 list-none">
+                                                <template x-for="(crit, i) in activeProject.acceptance" :key="crit">
+                                                    <li class="ps-crit-item flex items-start gap-3 text-sm text-slate-300"
+                                                        :style="'animation-delay:' + (0.28 + i * 0.07) + 's'">
+                                                        <div class="ps-crit-icon shrink-0 w-5 h-5 rounded-full flex items-center justify-center mt-0.5"
+                                                            style="background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);">
+                                                            <i class="fas fa-check text-emerald-400" style="font-size:8px;"></i>
+                                                        </div>
+                                                        <span x-text="crit"></span>
+                                                    </li>
+                                                </template>
+                                            </ul>
+                                        </div>
+
+                                    </div>
+
+                                    <!-- Right sidebar -->
+                                    <div class="ps-sidebar space-y-4">
+
+                                        <!-- Difficulty meter -->
+                                        <div class="rounded-2xl border p-5"
+                                            style="background:rgba(15,23,42,0.8);border-color:rgba(100,116,139,0.2);">
+                                            <div class="flex items-center gap-2 mb-4">
+                                                <div class="w-1 h-4 rounded-full" style="background:linear-gradient(180deg,#f59e0b,#ef4444);"></div>
+                                                <h4 class="text-slate-400 text-xs font-black uppercase tracking-widest m-0">Difficulty</h4>
+                                            </div>
+                                            <div class="flex items-center gap-2 mb-2">
+                                                <span class="text-sm font-bold text-white capitalize" x-text="activeProject.difficulty"></span>
+                                            </div>
+                                            <div class="w-full rounded-full h-1.5" style="background:rgba(51,65,85,0.8);">
+                                                <div class="ps-difficulty-fill h-1.5 rounded-full"
+                                                    style="background:linear-gradient(90deg,#f59e0b,#ef4444);"
+                                                    :style="'width:' + (activeProject.difficulty==='Basic'?'30':activeProject.difficulty==='Intermediate'?'60':'95') + '%'"></div>
+                                            </div>
+                                            <div class="flex justify-between mt-1">
+                                                <span style="font-size:9px;color:#475569;">Basic</span>
+                                                <span style="font-size:9px;color:#475569;">Advanced</span>
                                             </div>
                                         </div>
+
+                                        <!-- Deliverables -->
+                                        <div class="rounded-2xl border p-5"
+                                            style="background:rgba(15,23,42,0.8);border-color:rgba(100,116,139,0.2);">
+                                            <div class="flex items-center gap-2 mb-4">
+                                                <div class="w-1 h-4 rounded-full" style="background:linear-gradient(180deg,#3b82f6,#06b6d4);"></div>
+                                                <h4 class="text-slate-400 text-xs font-black uppercase tracking-widest m-0">Deliverables</h4>
+                                            </div>
+                                            <div class="space-y-2">
+                                                <template x-for="(del, i) in activeProject.deliverables" :key="del">
+                                                    <div class="ps-tag flex items-center gap-2 px-3 py-2 rounded-lg"
+                                                        style="background:rgba(37,99,235,0.1);border:1px solid rgba(59,130,246,0.2);"
+                                                        :style="'animation-delay:' + (0.32 + i*0.08) + 's'">
+                                                        <i class="fas fa-file-code text-blue-400" style="font-size:11px;"></i>
+                                                        <span class="text-xs font-mono text-slate-300" x-text="del"></span>
+                                                    </div>
+                                                </template>
+                                            </div>
+                                        </div>
+
+                                        <!-- I/O Spec -->
+                                        <div class="ps-inout-card rounded-2xl border p-5"
+                                            style="background:rgba(15,23,42,0.8);border-color:rgba(100,116,139,0.2);">
+                                            <div class="flex items-center gap-2 mb-4">
+                                                <div class="w-1 h-4 rounded-full" style="background:linear-gradient(180deg,#a855f7,#ec4899);"></div>
+                                                <h4 class="text-slate-400 text-xs font-black uppercase tracking-widest m-0">I/O Spec</h4>
+                                            </div>
+                                            <div class="space-y-3">
+                                                <div>
+                                                    <div class="flex items-center gap-1.5 mb-1.5">
+                                                        <i class="fas fa-arrow-right text-blue-400" style="font-size:9px;"></i>
+                                                        <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Input</span>
+                                                    </div>
+                                                    <div class="rounded-lg px-3 py-2 font-mono text-[11px] text-slate-400"
+                                                        style="background:rgba(0,0,0,0.4);border:1px solid rgba(51,65,85,0.6);"
+                                                        x-text="activeProject.inputSpec"></div>
+                                                </div>
+                                                <div>
+                                                    <div class="flex items-center gap-1.5 mb-1.5">
+                                                        <i class="fas fa-arrow-left text-emerald-400" style="font-size:9px;"></i>
+                                                        <span class="text-[10px] font-black text-slate-500 uppercase tracking-wider">Output</span>
+                                                    </div>
+                                                    <div class="rounded-lg px-3 py-2 font-mono text-[11px] text-slate-400"
+                                                        style="background:rgba(0,0,0,0.4);border:1px solid rgba(51,65,85,0.6);"
+                                                        x-text="activeProject.outputSpec"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <!-- Quick tip -->
+                                        <div class="ps-tips rounded-2xl border p-4 flex gap-3"
+                                            style="background:rgba(234,179,8,0.05);border-color:rgba(234,179,8,0.2);">
+                                            <i class="fas fa-lightbulb text-yellow-400 mt-0.5 shrink-0" style="font-size:13px;"></i>
+                                            <p class="text-[11px] text-slate-400 leading-relaxed m-0">Read the acceptance criteria carefully before writing any code. Each check maps to a specific expected output.</p>
+                                        </div>
+
                                     </div>
                                 </div>
                             </div>
                         </div>
-
                         <!-- Editor View -->
                         <div x-show="wsTab === 'editor'"
                             class="absolute inset-0 flex flex-col bg-slate-950 overflow-hidden">
@@ -1792,6 +1950,642 @@
         </div>
     </div>
 
+    <!-- ══════════════════════════════════════════════════════ -->
+    <!-- HACKATHON ARENA — Candidate View                       -->
+    <!-- ══════════════════════════════════════════════════════ -->
+    <div x-show="currentView === 'hackathon_arena'" class="h-full flex flex-col overflow-hidden bg-slate-950">
+
+        <!-- Arena header bar -->
+        <div class="bg-slate-900 border-b border-slate-800 px-6 py-3 flex items-center justify-between shrink-0">
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <div class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></div>
+                    <span class="text-[10px] font-black text-purple-400 uppercase tracking-widest">Hackathon Live</span>
+                </div>
+                <div x-show="hackathonSession" class="text-[10px] text-slate-500" x-text="hackathonSession ? hackathonSession.title : ''"></div>
+            </div>
+            <!-- Countdown timer -->
+            <div class="flex items-center gap-3">
+                <div x-show="hackathonSession && hackathonSession.status === 'active'" class="flex items-center gap-2 bg-slate-800 px-4 py-2 rounded-xl border border-slate-700">
+                    <i class="fas fa-clock text-amber-400" style="font-size:11px"></i>
+                    <span class="text-sm font-black text-amber-400 tabular-nums" x-text="hackathonTimeLeft"></span>
+                </div>
+                <div class="flex items-center gap-2 bg-slate-800 px-3 py-2 rounded-xl border border-slate-700">
+                    <span class="text-[10px] text-slate-500">Solved</span>
+                    <span class="text-sm font-black text-emerald-400" x-text="hackathonSolved + '/' + hackathonTotal"></span>
+                </div>
+                <div class="flex items-center gap-2 bg-slate-800 px-3 py-2 rounded-xl border border-slate-700">
+                    <span class="text-[10px] text-slate-500">Score</span>
+                    <span class="text-sm font-black text-blue-400" x-text="hackathonMyScore"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- No active session message -->
+        <div x-show="!hackathonSession || hackathonSession.status === 'pending'" class="flex-1 flex items-center justify-center">
+            <div class="text-center space-y-4 max-w-md">
+                <div class="w-20 h-20 rounded-3xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mx-auto">
+                    <i class="fas fa-bolt text-purple-400 text-3xl"></i>
+                </div>
+                <h2 class="text-2xl font-black text-white">No Active Hackathon</h2>
+                <p class="text-slate-400 text-sm">Your admin hasn't started a hackathon session yet. Check back soon or ask your trainer.</p>
+                <button @click="loadHackathonSession()" class="mt-4 bg-purple-600 hover:bg-purple-500 text-white px-6 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2 mx-auto">
+                    <i class="fas fa-sync text-xs"></i> Check for Session
+                </button>
+            </div>
+        </div>
+
+        <!-- Active hackathon workspace -->
+        <div x-show="hackathonSession && hackathonSession.status === 'active'" class="flex-1 flex overflow-hidden">
+
+            <!-- Left sidebar: problem list -->
+            <div class="w-64 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0 overflow-y-auto custom-scrollbar">
+                <div class="p-4 border-b border-slate-800">
+                    <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">Problems</div>
+                    <div class="text-xs text-slate-400" x-text="(hackathonSession ? hackathonSession.problems.length : 0) + ' challenges'"></div>
+                </div>
+                <div class="flex-1 p-2 space-y-1">
+                    <template x-for="(prob, idx) in (hackathonSession ? hackathonSession.problems : [])" :key="prob.id">
+                        <button @click="openHackathonProblem(prob, idx)"
+                            class="w-full text-left px-3 py-3 rounded-xl transition-all flex items-center gap-3"
+                            :class="hackathonActiveProblem && hackathonActiveProblem.id === prob.id
+                                ? 'bg-purple-600/20 border border-purple-500/40'
+                                : 'hover:bg-slate-800 border border-transparent'">
+                            <!-- Status indicator -->
+                            <div class="w-6 h-6 rounded-full flex items-center justify-center shrink-0 text-[10px] font-black"
+                                :class="hackathonSubmissions[prob.id]?.passed
+                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                                    : hackathonSubmissions[prob.id]
+                                    ? 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                                    : 'bg-slate-800 text-slate-600 border border-slate-700'"
+                                x-text="idx + 1">
+                            </div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-xs font-bold text-white truncate" x-text="prob.title"></div>
+                                <div class="text-[10px] text-slate-500 flex items-center gap-1 mt-0.5">
+                                    <span x-text="prob.difficulty"></span>
+                                    <span x-show="hackathonSubmissions[prob.id]?.passed" class="text-emerald-400">• Solved</span>
+                                    <span x-show="hackathonSubmissions[prob.id] && !hackathonSubmissions[prob.id]?.passed" class="text-amber-400">• Attempted</span>
+                                </div>
+                            </div>
+                            <span class="text-[10px] font-black text-slate-600" x-text="prob.points + 'pt'"></span>
+                        </button>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Main workspace -->
+            <div class="flex-1 flex overflow-hidden">
+                <!-- Problem statement panel -->
+                <div class="w-2/5 border-r border-slate-800 overflow-y-auto custom-scrollbar p-6">
+                    <div x-show="!hackathonActiveProblem" class="flex items-center justify-center h-full text-slate-600">
+                        <div class="text-center">
+                            <i class="fas fa-arrow-left text-3xl mb-3"></i>
+                            <p class="text-sm">Select a problem to begin</p>
+                        </div>
+                    </div>
+                    <div x-show="hackathonActiveProblem">
+                        <!-- Problem header -->
+                        <div class="mb-5">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-[10px] font-black text-purple-400 uppercase tracking-widest" x-text="hackathonActiveProblem ? hackathonActiveProblem.id : ''"></span>
+                                <span class="text-[10px] font-black px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 uppercase" x-text="hackathonActiveProblem ? hackathonActiveProblem.difficulty : ''"></span>
+                                <span class="ml-auto text-[10px] font-black text-amber-400 flex items-center gap-1">
+                                    <i class="fas fa-clock"></i>
+                                    <span x-text="hackathonProblemTimer"></span>
+                                </span>
+                            </div>
+                            <h2 class="text-xl font-black text-white" x-text="hackathonActiveProblem ? hackathonActiveProblem.title : ''"></h2>
+                        </div>
+                        <!-- Gradient accent -->
+                        <div style="height:2px;background:linear-gradient(90deg,#7c3aed,#3b82f6,transparent);border-radius:2px;margin-bottom:16px"></div>
+                        <!-- Statement -->
+                        <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 mb-4">
+                            <div class="text-[10px] font-black text-purple-400 uppercase tracking-widest mb-3">Problem</div>
+                            <p class="text-slate-300 text-sm leading-relaxed whitespace-pre-line" x-text="hackathonActiveProblem ? hackathonActiveProblem.statement : ''"></p>
+                        </div>
+                        <!-- Acceptance criteria -->
+                        <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 mb-4">
+                            <div class="text-[10px] font-black text-emerald-400 uppercase tracking-widest mb-3">Acceptance Criteria</div>
+                            <ul class="space-y-2">
+                                <template x-for="crit in (hackathonActiveProblem ? hackathonActiveProblem.acceptance : [])" :key="crit">
+                                    <li class="flex items-start gap-2 text-xs text-slate-400">
+                                        <i class="fas fa-check-circle text-emerald-500 mt-0.5 shrink-0" style="font-size:10px"></i>
+                                        <span x-text="crit"></span>
+                                    </li>
+                                </template>
+                            </ul>
+                        </div>
+                        <!-- I/O spec -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
+                                <div class="text-[10px] font-black text-slate-500 uppercase mb-2">Input</div>
+                                <div class="font-mono text-[11px] text-slate-400" x-text="hackathonActiveProblem ? hackathonActiveProblem.inputSpec : ''"></div>
+                            </div>
+                            <div class="bg-slate-900 rounded-xl border border-slate-800 p-4">
+                                <div class="text-[10px] font-black text-slate-500 uppercase mb-2">Output</div>
+                                <div class="font-mono text-[11px] text-slate-400" x-text="hackathonActiveProblem ? hackathonActiveProblem.outputSpec : ''"></div>
+                            </div>
+                        </div>
+                        <!-- Attempt info -->
+                        <div x-show="hackathonSubmissions[hackathonActiveProblem ? hackathonActiveProblem.id : '']" class="mt-4 bg-amber-500/5 border border-amber-500/20 rounded-xl p-4">
+                            <div class="text-[10px] font-black text-amber-400 uppercase tracking-widest mb-1">Your Attempts</div>
+                            <div class="text-xs text-slate-400" x-text="'Submissions: ' + (hackathonSubmissions[hackathonActiveProblem ? hackathonActiveProblem.id : '']?.attempts || 0) + ' • Penalty: -' + Math.min((hackathonSubmissions[hackathonActiveProblem ? hackathonActiveProblem.id : '']?.attempts || 0) * 2, 10) + ' pts'"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Code editor + results -->
+                <div class="flex-1 flex flex-col overflow-hidden">
+                    <!-- Editor toolbar -->
+                    <div class="bg-slate-900 border-b border-slate-800 px-4 py-2 flex items-center justify-between shrink-0">
+                        <div class="flex items-center gap-3">
+                            <i class="fas fa-code text-slate-600" style="font-size:11px"></i>
+                            <span class="text-[10px] font-bold text-slate-500">main.c</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button @click="runHackathonBuild()" :disabled="isBuilding || !hackathonActiveProblem"
+                                class="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white px-4 py-1.5 rounded-lg font-bold text-[10px] transition-all flex items-center gap-2">
+                                <i class="fas" :class="isBuilding ? 'fa-circle-notch fa-spin' : 'fa-play'"></i>
+                                <span x-text="isBuilding ? 'Running...' : 'Run Tests'"></span>
+                            </button>
+                            <button @click="submitHackathon()" :disabled="isSubmitting || !hackathonActiveProblem || !hackathonBuildReport"
+                                class="bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-white px-4 py-1.5 rounded-lg font-bold text-[10px] transition-all flex items-center gap-2">
+                                <i class="fas fa-paper-plane text-[9px]"></i>
+                                <span x-text="isSubmitting ? 'Submitting...' : 'Submit'"></span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Code textarea -->
+                    <textarea x-model="hackathonCode" spellcheck="false"
+                        class="flex-1 bg-slate-950 p-5 text-sm code-font outline-none leading-relaxed resize-none text-slate-300 min-h-0"
+                        placeholder="// Write your solution here..." style="min-height:0"></textarea>
+
+                    <!-- Results panel -->
+                    <div x-show="hackathonBuildReport" class="border-t border-slate-800 bg-slate-900 overflow-y-auto custom-scrollbar" style="max-height:220px">
+                        <div class="p-4">
+                            <div x-show="hackathonBuildReport && !hackathonBuildReport.success" class="text-red-400 text-xs font-mono whitespace-pre-wrap mb-3"
+                                x-text="hackathonBuildReport ? hackathonBuildReport.logs.map(l=>l.text).join('
+') : ''"></div>
+                            <div x-show="hackathonBuildReport && hackathonBuildReport.success" class="space-y-2">
+                                <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Test Results</div>
+                                <template x-for="r in hackathonTestResults" :key="r.id">
+                                    <div class="flex items-center gap-3 px-3 py-2 rounded-lg"
+                                        :class="r.passed ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-red-500/10 border border-red-500/20'">
+                                        <i class="fas" :class="r.passed ? 'fa-check-circle text-emerald-400' : 'fa-times-circle text-red-400'" style="font-size:11px"></i>
+                                        <span class="text-xs font-bold" :class="r.passed ? 'text-emerald-400' : 'text-red-400'" x-text="r.name"></span>
+                                        <span x-show="!r.passed" class="text-[10px] text-slate-500 ml-auto" x-text="r.actual ? 'Got: ' + r.actual : ''"></span>
+                                    </div>
+                                </template>
+                                <div class="mt-3 pt-3 border-t border-slate-800 flex items-center justify-between">
+                                    <span class="text-xs font-bold" :class="hackathonTestResults.every(r=>r.passed) ? 'text-emerald-400' : 'text-amber-400'"
+                                        x-text="hackathonTestResults.filter(r=>r.passed).length + '/' + hackathonTestResults.length + ' passed'"></span>
+                                    <span class="text-[10px] text-slate-500"
+                                        x-text="'Auto score: ' + Math.round(hackathonTestResults.filter(r=>r.passed).length / Math.max(hackathonTestResults.length, 1) * 100) + '%'"></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════ -->
+    <!-- LEADERBOARD — Candidate & Admin                       -->
+    <!-- ══════════════════════════════════════════════════════ -->
+    <div x-show="currentView === 'leaderboard'" class="h-full overflow-y-auto custom-scrollbar bg-slate-950 p-8">
+        <div class="max-w-5xl mx-auto">
+            <!-- Header -->
+            <div class="flex items-center justify-between mb-8">
+                <div>
+                    <div class="flex items-center gap-3 mb-2">
+                        <div class="w-10 h-10 rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center">
+                            <i class="fas fa-trophy text-amber-400 text-lg"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-black text-white">Leaderboard</h2>
+                            <p class="text-slate-500 text-xs" x-text="leaderboardData.length + ' candidates ranked'"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="flex items-center gap-2 bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl">
+                        <div class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+                        <span class="text-[10px] font-bold text-slate-400">Updates every 30s</span>
+                    </div>
+                    <button @click="loadLeaderboard()" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-2 rounded-xl text-[10px] font-bold flex items-center gap-2 transition-all">
+                        <i class="fas fa-sync text-[9px]"></i> Refresh
+                    </button>
+                    <button x-show="user.role === 'admin'" @click="exportLeaderboard()"
+                        class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-2 rounded-xl text-[10px] font-bold flex items-center gap-2 transition-all">
+                        <i class="fas fa-download text-[9px]"></i> Export CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Top 3 podium -->
+            <div x-show="leaderboardData.length >= 3" class="grid grid-cols-3 gap-4 mb-8">
+                <!-- 2nd place -->
+                <div class="flex flex-col items-center pt-8">
+                    <div class="w-14 h-14 rounded-2xl bg-slate-700 border-2 border-slate-600 flex items-center justify-center text-lg font-black text-white mb-2"
+                        x-text="(leaderboardData[1] ? leaderboardData[1].name : '?').substring(0,2).toUpperCase()"></div>
+                    <div class="text-sm font-bold text-white truncate w-full text-center" x-text="leaderboardData[1] ? leaderboardData[1].name : ''"></div>
+                    <div class="text-xs text-slate-400" x-text="leaderboardData[1] ? leaderboardData[1].finalScore + ' pts' : ''"></div>
+                    <div class="mt-3 w-full bg-slate-700 rounded-t-xl flex items-center justify-center py-3 border border-slate-600">
+                        <span class="text-slate-300 font-black text-xl">#2</span>
+                    </div>
+                </div>
+                <!-- 1st place -->
+                <div class="flex flex-col items-center">
+                    <div class="w-16 h-16 rounded-2xl bg-amber-500/20 border-2 border-amber-400 flex items-center justify-center text-xl font-black text-amber-400 mb-2"
+                        x-text="(leaderboardData[0] ? leaderboardData[0].name : '?').substring(0,2).toUpperCase()"></div>
+                    <i class="fas fa-crown text-amber-400 mb-1" style="font-size:14px"></i>
+                    <div class="text-sm font-bold text-white truncate w-full text-center" x-text="leaderboardData[0] ? leaderboardData[0].name : ''"></div>
+                    <div class="text-xs text-amber-400 font-bold" x-text="leaderboardData[0] ? leaderboardData[0].finalScore + ' pts' : ''"></div>
+                    <div class="mt-3 w-full rounded-t-xl flex items-center justify-center py-4 border border-amber-500/40" style="background:rgba(234,179,8,0.1)">
+                        <span class="text-amber-400 font-black text-2xl">#1</span>
+                    </div>
+                </div>
+                <!-- 3rd place -->
+                <div class="flex flex-col items-center pt-12">
+                    <div class="w-12 h-12 rounded-2xl bg-slate-800 border-2 border-slate-700 flex items-center justify-center text-base font-black text-slate-400 mb-2"
+                        x-text="(leaderboardData[2] ? leaderboardData[2].name : '?').substring(0,2).toUpperCase()"></div>
+                    <div class="text-sm font-bold text-white truncate w-full text-center" x-text="leaderboardData[2] ? leaderboardData[2].name : ''"></div>
+                    <div class="text-xs text-slate-400" x-text="leaderboardData[2] ? leaderboardData[2].finalScore + ' pts' : ''"></div>
+                    <div class="mt-3 w-full bg-slate-800 rounded-t-xl flex items-center justify-center py-2 border border-slate-700">
+                        <span class="text-slate-400 font-black text-lg">#3</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Full rankings table -->
+            <div class="bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden shadow-2xl">
+                <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+                    <span class="text-xs font-black text-slate-400 uppercase tracking-widest">Full Rankings</span>
+                    <span class="text-[10px] text-slate-500" x-text="leaderboardData.length + ' participants'"></span>
+                </div>
+                <div x-show="leaderboardData.length === 0" class="text-center py-16 text-slate-600">
+                    <i class="fas fa-trophy text-4xl mb-4"></i>
+                    <p class="text-sm">No submissions yet. Hackathon results will appear here.</p>
+                </div>
+                <table x-show="leaderboardData.length > 0" class="w-full">
+                    <thead>
+                        <tr class="border-b border-slate-800">
+                            <th class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Rank</th>
+                            <th class="text-left px-5 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Candidate</th>
+                            <th class="text-center px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Solved</th>
+                            <th class="text-center px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Correctness</th>
+                            <th class="text-center px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Avg Time</th>
+                            <th class="text-center px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Quality</th>
+                            <th class="text-center px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Final Score</th>
+                            <th class="text-center px-4 py-3 text-[10px] font-black text-slate-500 uppercase tracking-widest">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <template x-for="(entry, idx) in leaderboardData" :key="entry.email">
+                            <tr class="border-b border-slate-800/50 hover:bg-slate-800/30 transition-all"
+                                :class="entry.email === user.email ? 'bg-blue-500/5 border-l-2 border-l-blue-500' : ''">
+                                <td class="px-5 py-4">
+                                    <span class="text-sm font-black"
+                                        :class="idx===0?'text-amber-400':idx===1?'text-slate-300':idx===2?'text-amber-700':'text-slate-500'"
+                                        x-text="'#' + (idx+1)"></span>
+                                </td>
+                                <td class="px-5 py-4">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-[10px] font-black text-slate-400"
+                                            x-text="entry.name.substring(0,2).toUpperCase()"></div>
+                                        <div>
+                                            <div class="text-sm font-bold text-white flex items-center gap-2">
+                                                <span x-text="entry.name"></span>
+                                                <span x-show="entry.email === user.email" class="text-[9px] bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded font-bold">You</span>
+                                            </div>
+                                            <div class="text-[10px] text-slate-500" x-text="entry.email"></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-4 py-4 text-center">
+                                    <span class="text-sm font-bold text-white" x-text="entry.solved + '/' + entry.total"></span>
+                                </td>
+                                <td class="px-4 py-4 text-center">
+                                    <span class="px-2 py-1 rounded-full text-[10px] font-black"
+                                        :class="entry.correctness >= 80 ? 'bg-emerald-500/20 text-emerald-400' : entry.correctness >= 50 ? 'bg-amber-500/20 text-amber-400' : 'bg-red-500/20 text-red-400'"
+                                        x-text="entry.correctness + '%'"></span>
+                                </td>
+                                <td class="px-4 py-4 text-center text-sm text-slate-400" x-text="entry.avgTime ? entry.avgTime + ' min' : '—'"></td>
+                                <td class="px-4 py-4 text-center text-sm text-slate-400" x-text="entry.qualityScore ? entry.qualityScore + '/10' : '—'"></td>
+                                <td class="px-4 py-4 text-center">
+                                    <span class="text-sm font-black" :class="entry.finalScore ? 'text-white' : 'text-slate-600'"
+                                        x-text="entry.finalScore ? entry.finalScore : '—'"></span>
+                                </td>
+                                <td class="px-4 py-4 text-center">
+                                    <span class="px-2 py-1 rounded-full text-[10px] font-black"
+                                        :class="entry.status === 'graded' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'"
+                                        x-text="entry.status === 'graded' ? 'Graded' : 'Pending'"></span>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════ -->
+    <!-- HACKATHON CONTROL — Admin View                        -->
+    <!-- ══════════════════════════════════════════════════════ -->
+    <div x-show="currentView === 'hackathon_control'" class="h-full overflow-y-auto custom-scrollbar bg-slate-950 p-8">
+        <div class="max-w-6xl mx-auto space-y-8">
+
+            <!-- Header -->
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-2xl font-black text-white flex items-center gap-3">
+                        <i class="fas fa-bolt text-purple-400"></i> Hackathon Control Center
+                    </h2>
+                    <p class="text-slate-500 text-sm mt-1">Configure, launch, monitor and grade hackathon sessions</p>
+                </div>
+                <div x-show="hackathonSession && hackathonSession.status === 'active'"
+                    class="flex items-center gap-2 bg-purple-500/10 border border-purple-500/30 px-4 py-2 rounded-xl">
+                    <div class="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></div>
+                    <span class="text-sm font-bold text-purple-400">Session Active</span>
+                    <span class="text-sm font-black text-white ml-1" x-text="hackathonTimeLeft"></span>
+                </div>
+            </div>
+
+            <!-- Session setup / active controls -->
+            <div class="grid grid-cols-2 gap-6">
+
+                <!-- Left: Create/manage session -->
+                <div class="bg-slate-900 rounded-3xl border border-slate-800 p-6 space-y-5">
+                    <div class="flex items-center gap-2 mb-2">
+                        <div class="w-1 h-5 rounded-full bg-purple-500"></div>
+                        <h3 class="text-sm font-black text-white uppercase tracking-widest">Session Setup</h3>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Hackathon Title</label>
+                        <input type="text" x-model="hackathonConfig.title"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm outline-none focus:ring-2 focus:ring-purple-500"
+                            placeholder="e.g. Visteon Embedded Challenge 2025">
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Duration (minutes)</label>
+                            <input type="number" x-model.number="hackathonConfig.duration"
+                                class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm outline-none focus:ring-2 focus:ring-purple-500"
+                                min="10" max="480" value="120">
+                        </div>
+                        <div>
+                            <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Topic</label>
+                            <select x-model="hackathonConfig.topicId"
+                                class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm outline-none focus:ring-2 focus:ring-purple-500">
+                                <template x-for="t in topics" :key="t.id">
+                                    <option :value="t.id" x-text="t.name"></option>
+                                </template>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">Number of Problems</label>
+                        <input type="number" x-model.number="hackathonConfig.problemCount"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-white text-sm outline-none focus:ring-2 focus:ring-purple-500"
+                            min="1" max="20" value="5">
+                    </div>
+
+                    <div class="flex gap-3 pt-2">
+                        <button @click="startHackathon()"
+                            x-show="!hackathonSession || hackathonSession.status !== 'active'"
+                            class="flex-1 bg-purple-600 hover:bg-purple-500 text-white py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                            <i class="fas fa-bolt"></i> Launch Hackathon
+                        </button>
+                        <button @click="endHackathon()"
+                            x-show="hackathonSession && hackathonSession.status === 'active'"
+                            class="flex-1 bg-red-600 hover:bg-red-500 text-white py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                            <i class="fas fa-stop"></i> End Session
+                        </button>
+                        <button @click="currentView='leaderboard'; loadLeaderboard()"
+                            class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-3 rounded-xl font-bold text-sm transition-all flex items-center gap-2">
+                            <i class="fas fa-trophy text-amber-400 text-xs"></i> View Board
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right: Live stats -->
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 text-center">
+                            <div class="text-3xl font-black text-white mb-1" x-text="hackathonLiveStats.participants"></div>
+                            <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Participants</div>
+                        </div>
+                        <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 text-center">
+                            <div class="text-3xl font-black text-emerald-400 mb-1" x-text="hackathonLiveStats.submissions"></div>
+                            <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Submissions</div>
+                        </div>
+                        <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 text-center">
+                            <div class="text-3xl font-black text-amber-400 mb-1" x-text="hackathonLiveStats.pendingGrades"></div>
+                            <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Pending Review</div>
+                        </div>
+                        <div class="bg-slate-900 rounded-2xl border border-slate-800 p-5 text-center">
+                            <div class="text-3xl font-black text-blue-400 mb-1" x-text="hackathonLiveStats.avgScore + '%'"></div>
+                            <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Avg Auto Score</div>
+                        </div>
+                    </div>
+                    <!-- Export button -->
+                    <button @click="exportLeaderboard()"
+                        class="w-full bg-emerald-600/20 hover:bg-emerald-600/30 border border-emerald-500/30 text-emerald-400 py-3 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                        <i class="fas fa-file-csv text-sm"></i> Export Results to CSV
+                    </button>
+                </div>
+            </div>
+
+            <!-- Rubric & Evaluation Panel -->
+            <div class="bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden">
+                <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <div class="w-1 h-5 rounded-full bg-amber-500"></div>
+                        <h3 class="text-sm font-black text-white uppercase tracking-widest">Evaluation Rubric</h3>
+                    </div>
+                    <span class="text-[10px] text-slate-500">Score weights — must sum to 100%</span>
+                </div>
+                <div class="p-6">
+                    <div class="space-y-4">
+                        <!-- Rubric rows -->
+                        <template x-for="metric in hackathonRubric" :key="metric.key">
+                            <div class="flex items-center gap-4">
+                                <div class="w-48 shrink-0">
+                                    <div class="text-sm font-bold text-white" x-text="metric.label"></div>
+                                    <div class="text-[10px] text-slate-500" x-text="metric.type"></div>
+                                </div>
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-3">
+                                        <input type="range" :min="0" :max="50" step="5" x-model.number="metric.weight"
+                                            class="flex-1" style="accent-color:#8b5cf6">
+                                        <span class="w-12 text-right text-sm font-black text-purple-400" x-text="metric.weight + '%'"></span>
+                                    </div>
+                                    <div class="text-[10px] text-slate-600 mt-0.5" x-text="metric.desc"></div>
+                                </div>
+                                <span class="text-[10px] px-2 py-1 rounded-full font-black"
+                                    :class="metric.grading === 'auto' ? 'bg-blue-500/20 text-blue-400' : 'bg-purple-500/20 text-purple-400'"
+                                    x-text="metric.grading === 'auto' ? 'Auto' : 'Manual'"></span>
+                            </div>
+                        </template>
+                        <!-- Weight total -->
+                        <div class="pt-4 border-t border-slate-800 flex items-center justify-between">
+                            <span class="text-sm text-slate-400">Total weight</span>
+                            <span class="text-lg font-black"
+                                :class="hackathonRubric.reduce((s,m)=>s+m.weight,0) === 100 ? 'text-emerald-400' : 'text-red-400'"
+                                x-text="hackathonRubric.reduce((s,m)=>s+m.weight,0) + '%'"></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Submission review queue -->
+            <div class="bg-slate-900 rounded-3xl border border-slate-800 overflow-hidden">
+                <div class="p-5 border-b border-slate-800 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <div class="w-1 h-5 rounded-full bg-emerald-500"></div>
+                        <h3 class="text-sm font-black text-white uppercase tracking-widest">Submission Review Queue</h3>
+                    </div>
+                    <button @click="loadHackathonSubmissions()" class="text-[10px] font-bold text-slate-500 hover:text-white flex items-center gap-1 transition-all">
+                        <i class="fas fa-sync text-[9px]"></i> Refresh
+                    </button>
+                </div>
+
+                <!-- Grading panel — shown when a submission is selected -->
+                <div x-show="hackathonGradingSubmission" class="border-b border-slate-800 p-6 bg-slate-950/50">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h4 class="text-base font-black text-white" x-text="hackathonGradingSubmission ? hackathonGradingSubmission.candidateName : ''"></h4>
+                            <p class="text-xs text-slate-500" x-text="hackathonGradingSubmission ? hackathonGradingSubmission.projectTitle : ''"></p>
+                        </div>
+                        <button @click="hackathonGradingSubmission = null" class="text-slate-600 hover:text-white text-xs">
+                            <i class="fas fa-times"></i> Close
+                        </button>
+                    </div>
+
+                    <!-- Code viewer -->
+                    <div x-show="hackathonGradingSubmission && hackathonGradingSubmission.code" class="mb-5">
+                        <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Submitted Code</div>
+                        <pre class="bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 code-font overflow-x-auto max-h-48 overflow-y-auto custom-scrollbar"
+                            x-text="hackathonGradingSubmission && hackathonGradingSubmission.code ? hackathonGradingSubmission.code[0].content : ''"></pre>
+                    </div>
+
+                    <!-- Auto scores display -->
+                    <div class="grid grid-cols-3 gap-3 mb-5">
+                        <div class="bg-slate-900 rounded-xl border border-slate-800 p-3 text-center">
+                            <div class="text-[10px] text-slate-500 uppercase mb-1">Correctness</div>
+                            <div class="text-xl font-black text-blue-400" x-text="(hackathonGradingSubmission ? hackathonGradingSubmission.autoScore : 0) + '%'"></div>
+                        </div>
+                        <div class="bg-slate-900 rounded-xl border border-slate-800 p-3 text-center">
+                            <div class="text-[10px] text-slate-500 uppercase mb-1">Solve Time</div>
+                            <div class="text-xl font-black text-amber-400" x-text="hackathonGradingSubmission ? (hackathonGradingSubmission.solveTime || '—') + ' min' : '—'"></div>
+                        </div>
+                        <div class="bg-slate-900 rounded-xl border border-slate-800 p-3 text-center">
+                            <div class="text-[10px] text-slate-500 uppercase mb-1">Attempts</div>
+                            <div class="text-xl font-black text-red-400" x-text="hackathonGradingSubmission ? (hackathonGradingSubmission.attempts || 1) : 1"></div>
+                        </div>
+                    </div>
+
+                    <!-- Manual score sliders -->
+                    <div class="space-y-4 mb-5">
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="text-xs font-bold text-slate-300">Code Quality & Style</label>
+                                <span class="text-sm font-black text-purple-400" x-text="hackathonManualScores.codeQuality + '/10'"></span>
+                            </div>
+                            <input type="range" min="0" max="10" step="1" x-model.number="hackathonManualScores.codeQuality"
+                                class="w-full" style="accent-color:#8b5cf6">
+                            <div class="text-[10px] text-slate-600 mt-0.5">Readability, naming, comments, MISRA hygiene</div>
+                        </div>
+                        <div>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="text-xs font-bold text-slate-300">Problem-Solving Approach</label>
+                                <span class="text-sm font-black text-purple-400" x-text="hackathonManualScores.approach + '/10'"></span>
+                            </div>
+                            <input type="range" min="0" max="10" step="1" x-model.number="hackathonManualScores.approach"
+                                class="w-full" style="accent-color:#8b5cf6">
+                            <div class="text-[10px] text-slate-600 mt-0.5">Algorithm choice, edge cases, defensive programming</div>
+                        </div>
+                    </div>
+
+                    <!-- Composite score preview -->
+                    <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
+                        <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Composite Score Preview</div>
+                        <div class="flex items-center gap-6">
+                            <div class="text-4xl font-black text-white"
+                                x-text="Math.round(
+                                    (hackathonGradingSubmission ? hackathonGradingSubmission.autoScore : 0) * 0.35 +
+                                    Math.max(0, 20 - Math.min((hackathonGradingSubmission ? hackathonGradingSubmission.solveTime || 20 : 20), 20)) +
+                                    hackathonManualScores.codeQuality * 2 +
+                                    hackathonManualScores.approach * 1.5 -
+                                    Math.min((hackathonGradingSubmission ? (hackathonGradingSubmission.attempts || 1) - 1 : 0) * 2, 10)
+                                ) + ' pts'">
+                            </div>
+                            <div class="flex-1 space-y-1 text-[10px] text-slate-500">
+                                <div class="flex justify-between"><span>Correctness (35%)</span><span x-text="Math.round((hackathonGradingSubmission ? hackathonGradingSubmission.autoScore : 0) * 0.35) + ' pts'"></span></div>
+                                <div class="flex justify-between"><span>Time bonus (20%)</span><span x-text="Math.max(0, 20 - Math.min((hackathonGradingSubmission ? hackathonGradingSubmission.solveTime || 20 : 20), 20)) + ' pts'"></span></div>
+                                <div class="flex justify-between"><span>Quality (20%)</span><span x-text="hackathonManualScores.codeQuality * 2 + ' pts'"></span></div>
+                                <div class="flex justify-between"><span>Approach (15%)</span><span x-text="hackathonManualScores.approach * 1.5 + ' pts'"></span></div>
+                                <div class="flex justify-between text-red-400"><span>Attempt penalty</span><span x-text="'-' + Math.min((hackathonGradingSubmission ? (hackathonGradingSubmission.attempts || 1) - 1 : 0) * 2, 10) + ' pts'"></span></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Comments -->
+                    <textarea x-model="hackathonGradeComments" rows="3"
+                        class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-300 outline-none focus:ring-2 focus:ring-purple-500 resize-none mb-4 code-font"
+                        placeholder="Feedback for the candidate..."></textarea>
+
+                    <button @click="submitHackathonGrade()" :disabled="isGrading"
+                        class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                        <i class="fas fa-check-circle"></i>
+                        <span x-text="isGrading ? 'Saving...' : 'Submit Grade'"></span>
+                    </button>
+                </div>
+
+                <!-- Submissions list -->
+                <div class="divide-y divide-slate-800">
+                    <div x-show="hackathonAllSubmissions.length === 0" class="text-center py-12 text-slate-600">
+                        <i class="fas fa-inbox text-3xl mb-3"></i>
+                        <p class="text-sm">No hackathon submissions yet</p>
+                    </div>
+                    <template x-for="sub in hackathonAllSubmissions" :key="sub.id">
+                        <div class="flex items-center gap-4 px-6 py-4 hover:bg-slate-800/30 transition-all">
+                            <div class="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-xs font-black text-slate-400"
+                                x-text="sub.candidateName ? sub.candidateName.substring(0,2).toUpperCase() : '?'"></div>
+                            <div class="flex-1 min-w-0">
+                                <div class="text-sm font-bold text-white" x-text="sub.candidateName"></div>
+                                <div class="text-[10px] text-slate-500" x-text="sub.projectTitle + ' • ' + sub.topicName"></div>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <div class="text-center">
+                                    <div class="text-xs font-black text-blue-400" x-text="sub.autoScore + '%'"></div>
+                                    <div class="text-[9px] text-slate-600">auto</div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-xs font-black text-amber-400" x-text="(sub.solveTime || '?') + 'm'"></div>
+                                    <div class="text-[9px] text-slate-600">time</div>
+                                </div>
+                                <span class="px-2 py-1 rounded-full text-[10px] font-black"
+                                    :class="sub.hackathonGrade ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'"
+                                    x-text="sub.hackathonGrade ? 'Graded' : 'Pending'"></span>
+                                <button @click="openHackathonGrading(sub)"
+                                    class="bg-purple-600/20 hover:bg-purple-600/40 border border-purple-500/30 text-purple-400 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-all">
+                                    <span x-text="sub.hackathonGrade ? 'Re-grade' : 'Grade'"></span>
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Submit Assignment Modal -->
     <div x-show="showSubmitModal"
         class="fixed inset-0 z-[120] bg-slate-950/90 backdrop-blur-md flex items-center justify-center p-8" x-transition
@@ -2127,6 +2921,37 @@
                 isSubmitting: false,
                 mySubmissions: [],
                 allSubmissions: [],
+                // ── Hackathon State ──
+                hackathonSession: null,
+                hackathonConfig: { title: 'Visteon Hackathon 2025', duration: 120, topicId: 'VISTEON_C_BASIC', problemCount: 5 },
+                hackathonActiveProblem: null,
+                hackathonCode: '',
+                hackathonBuildReport: null,
+                hackathonTestResults: [],
+                hackathonSubmissions: {},
+                hackathonAllSubmissions: [],
+                hackathonGradingSubmission: null,
+                hackathonManualScores: { codeQuality: 5, approach: 5 },
+                hackathonGradeComments: '',
+                hackathonTimeLeft: '00:00',
+                hackathonSolved: 0,
+                hackathonTotal: 0,
+                hackathonMyScore: 0,
+                hackathonProblemTimer: '00:00',
+                hackathonProblemStartTime: null,
+                hackathonSessionStartTime: null,
+                hackathonTimerInterval: null,
+                hackathonProblemTimerInterval: null,
+                leaderboardData: [],
+                hackathonLiveStats: { participants: 0, submissions: 0, pendingGrades: 0, avgScore: 0 },
+                hackathonRubric: [
+                    { key: 'correctness', label: 'Code Correctness', type: 'Test cases passed', weight: 35, grading: 'auto', desc: 'Percentage of test cases passing' },
+                    { key: 'timeBonus',   label: 'Time to Solve',    type: 'Speed bonus',       weight: 20, grading: 'auto', desc: '<10min=20pts, 10-20=15pts, 20-40=10pts, 40+=5pts' },
+                    { key: 'codeQuality', label: 'Code Quality',     type: 'Style & readability', weight: 20, grading: 'manual', desc: 'Naming, comments, MISRA hygiene, structure' },
+                    { key: 'approach',    label: 'Problem-Solving',  type: 'Algorithm & design', weight: 15, grading: 'manual', desc: 'Algorithm choice, edge cases, robustness' },
+                    { key: 'penalty',     label: 'Attempt Penalty',  type: '-2pts per wrong submit', weight: 10, grading: 'auto', desc: 'Capped at -10 pts total' },
+                ],
+
                 submissionsLoading: false,
                 submissionsError: '',
 
@@ -4089,6 +4914,233 @@
                         console.error('Failed to load submission detail:', e);
                         this.gradingDetail = { code: [], test_results: [] };
                     }
+                },
+
+                // ═══════════════════════════════════════════════════
+                // HACKATHON METHODS
+                // ═══════════════════════════════════════════════════
+                async loadHackathonSession() {
+                    try {
+                        const res = await fetch('/api/hackathon/session', { headers: this._authHeaders() });
+                        const data = await res.json();
+                        if (data && data.id) {
+                            this.hackathonSession = data;
+                            this.hackathonTotal = data.problems ? data.problems.length : 0;
+                            if (data.status === 'active') this.startHackathonTimers(data);
+                        }
+                    } catch(e) { this.hackathonSession = null; }
+                },
+
+                startHackathonTimers(session) {
+                    if (this.hackathonTimerInterval) clearInterval(this.hackathonTimerInterval);
+                    const endTime = new Date(session.endTime).getTime();
+                    this.hackathonTimerInterval = setInterval(() => {
+                        const remaining = Math.max(0, endTime - Date.now());
+                        const m = Math.floor(remaining / 60000);
+                        const s = Math.floor((remaining % 60000) / 1000);
+                        this.hackathonTimeLeft = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+                        if (remaining === 0) { clearInterval(this.hackathonTimerInterval); this.hackathonSession.status = 'ended'; }
+                    }, 1000);
+                },
+
+                openHackathonProblem(prob, idx) {
+                    this.hackathonActiveProblem = prob;
+                    this.hackathonBuildReport = null;
+                    this.hackathonTestResults = [];
+                    // Load default starter code
+                    this.hackathonCode = prob.files && prob.files[0] ? prob.files[0].content : '#include <stdio.h>\n\nint main() {\n    // Your solution here\n    return 0;\n}';
+                    // Start per-problem timer
+                    if (this.hackathonProblemTimerInterval) clearInterval(this.hackathonProblemTimerInterval);
+                    this.hackathonProblemStartTime = Date.now();
+                    this.hackathonProblemTimerInterval = setInterval(() => {
+                        const elapsed = Math.floor((Date.now() - this.hackathonProblemStartTime) / 1000);
+                        const m = Math.floor(elapsed / 60);
+                        const s = elapsed % 60;
+                        this.hackathonProblemTimer = String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+                    }, 1000);
+                },
+
+                async runHackathonBuild() {
+                    if (this.isBuilding || !this.hackathonActiveProblem) return;
+                    this.isBuilding = true;
+                    this.hackathonBuildReport = null;
+                    this.hackathonTestResults = [];
+                    // Reuse existing build infrastructure
+                    const savedProject = this.activeProject;
+                    const savedFiles = this.activeFiles;
+                    this.activeProject = this.hackathonActiveProblem;
+                    this.activeFiles = [{ name: 'main.c', content: this.hackathonCode }];
+                    await this.runBuild();
+                    this.hackathonBuildReport = this.buildReport;
+                    this.hackathonTestResults = this.testResults;
+                    this.activeProject = savedProject;
+                    this.activeFiles = savedFiles;
+                    this.isBuilding = false;
+                },
+
+                async submitHackathon() {
+                    if (this.isSubmitting || !this.hackathonActiveProblem) return;
+                    this.isSubmitting = true;
+                    try {
+                        const passed = this.hackathonTestResults.filter(r => r.passed).length;
+                        const total = this.hackathonTestResults.length;
+                        const autoScore = total > 0 ? Math.round((passed / total) * 100) : 0;
+                        const solveTime = this.hackathonProblemStartTime ? Math.round((Date.now() - this.hackathonProblemStartTime) / 60000) : 0;
+                        const prevAttempts = this.hackathonSubmissions[this.hackathonActiveProblem.id]?.attempts || 0;
+                        const res = await fetch('/api/hackathon/submit', {
+                            method: 'POST',
+                            headers: this._authHeaders(),
+                            body: JSON.stringify({
+                                sessionId: this.hackathonSession?.id,
+                                candidateName: this.user.name,
+                                email: this.user.email,
+                                projectId: this.hackathonActiveProblem.id,
+                                projectTitle: this.hackathonActiveProblem.title,
+                                topicId: this.hackathonActiveProblem.topicId,
+                                topicName: this.hackathonActiveProblem.topicId,
+                                code: [{ name: 'main.c', content: this.hackathonCode }],
+                                testResults: this.hackathonTestResults.map(r => ({ name: r.name, passed: r.passed })),
+                                testsPassed: passed,
+                                testsTotal: total,
+                                autoScore,
+                                solveTime,
+                                attempts: prevAttempts + 1
+                            })
+                        });
+                        const result = await res.json();
+                        if (result.success) {
+                            this.hackathonSubmissions[this.hackathonActiveProblem.id] = {
+                                passed: autoScore === 100,
+                                attempts: prevAttempts + 1,
+                                autoScore
+                            };
+                            this.hackathonSolved = Object.values(this.hackathonSubmissions).filter(s => s.passed).length;
+                            this.hackathonMyScore = autoScore;
+                            this.successToast = autoScore === 100 ? '✅ Problem solved! Great work!' : '📤 Submitted — ' + passed + '/' + total + ' tests passing';
+                            setTimeout(() => { this.successToast = ''; }, 4000);
+                        }
+                    } catch(e) {
+                        this.successToast = '❌ Submission failed. Check connection.';
+                        setTimeout(() => { this.successToast = ''; }, 3000);
+                    }
+                    this.isSubmitting = false;
+                },
+
+                async startHackathon() {
+                    if (!this.hackathonConfig.title || !this.hackathonConfig.topicId) return;
+                    try {
+                        const topicProblems = this.projects.filter(p => p.topicId === this.hackathonConfig.topicId);
+                        const shuffled = [...topicProblems].sort(() => Math.random() - 0.5);
+                        const selected = shuffled.slice(0, Math.min(this.hackathonConfig.problemCount, shuffled.length));
+                        const res = await fetch('/api/hackathon/start', {
+                            method: 'POST',
+                            headers: this._authHeaders(),
+                            body: JSON.stringify({
+                                title: this.hackathonConfig.title,
+                                duration: this.hackathonConfig.duration,
+                                topicId: this.hackathonConfig.topicId,
+                                problems: selected.map(p => ({ id: p.id, title: p.title, difficulty: p.difficulty, points: p.points || 100, statement: p.statement, acceptance: p.acceptance, inputSpec: p.inputSpec, outputSpec: p.outputSpec, files: p.files, testCases: p.testCases }))
+                            })
+                        });
+                        const result = await res.json();
+                        if (result.success) {
+                            this.hackathonSession = result.session;
+                            this.hackathonTotal = result.session.problems.length;
+                            this.startHackathonTimers(result.session);
+                            this.successToast = '🚀 Hackathon launched! ' + result.session.problems.length + ' problems activated.';
+                            setTimeout(() => { this.successToast = ''; }, 4000);
+                        }
+                    } catch(e) {
+                        this.successToast = '❌ Failed to start hackathon.';
+                        setTimeout(() => { this.successToast = ''; }, 3000);
+                    }
+                },
+
+                async endHackathon() {
+                    if (!this.hackathonSession) return;
+                    try {
+                        await fetch('/api/hackathon/end', { method: 'POST', headers: this._authHeaders(), body: JSON.stringify({ sessionId: this.hackathonSession.id }) });
+                        this.hackathonSession.status = 'ended';
+                        if (this.hackathonTimerInterval) clearInterval(this.hackathonTimerInterval);
+                        this.successToast = '⏹ Hackathon ended. Submissions locked.';
+                        setTimeout(() => { this.successToast = ''; }, 4000);
+                    } catch(e) {}
+                },
+
+                async loadLeaderboard() {
+                    try {
+                        const res = await fetch('/api/hackathon/leaderboard', { headers: this._authHeaders() });
+                        this.leaderboardData = await res.json();
+                    } catch(e) { this.leaderboardData = []; }
+                },
+
+                async loadHackathonSubmissions() {
+                    try {
+                        const res = await fetch('/api/hackathon/submissions', { headers: this._authHeaders() });
+                        this.hackathonAllSubmissions = await res.json();
+                        this.hackathonLiveStats.submissions = this.hackathonAllSubmissions.length;
+                        this.hackathonLiveStats.pendingGrades = this.hackathonAllSubmissions.filter(s => !s.hackathonGrade).length;
+                        const scored = this.hackathonAllSubmissions.filter(s => s.autoScore != null);
+                        this.hackathonLiveStats.avgScore = scored.length ? Math.round(scored.reduce((a,s) => a + s.autoScore, 0) / scored.length) : 0;
+                        const unique = new Set(this.hackathonAllSubmissions.map(s => s.email));
+                        this.hackathonLiveStats.participants = unique.size;
+                    } catch(e) { this.hackathonAllSubmissions = []; }
+                },
+
+                openHackathonGrading(sub) {
+                    this.hackathonGradingSubmission = sub;
+                    this.hackathonManualScores = sub.hackathonGrade ? { ...sub.hackathonGrade.manualScores } : { codeQuality: 5, approach: 5 };
+                    this.hackathonGradeComments = sub.hackathonGrade ? sub.hackathonGrade.comments || '' : '';
+                },
+
+                async submitHackathonGrade() {
+                    if (this.isGrading || !this.hackathonGradingSubmission) return;
+                    this.isGrading = true;
+                    try {
+                        const sub = this.hackathonGradingSubmission;
+                        const correctness = (sub.autoScore || 0) * 0.35;
+                        const solveTime = sub.solveTime || 20;
+                        const timeBonus = solveTime < 10 ? 20 : solveTime < 20 ? 15 : solveTime < 40 ? 10 : 5;
+                        const quality = this.hackathonManualScores.codeQuality * 2;
+                        const approach = this.hackathonManualScores.approach * 1.5;
+                        const penalty = Math.min(((sub.attempts || 1) - 1) * 2, 10);
+                        const composite = Math.round(correctness + timeBonus + quality + approach - penalty);
+                        const res = await fetch('/api/hackathon/grade', {
+                            method: 'POST',
+                            headers: this._authHeaders(),
+                            body: JSON.stringify({
+                                submissionId: sub.id,
+                                manualScores: this.hackathonManualScores,
+                                comments: this.hackathonGradeComments,
+                                compositeScore: composite,
+                                trainerName: this.user.name
+                            })
+                        });
+                        const result = await res.json();
+                        if (result.success) {
+                            this.successToast = '✅ Grade saved! Composite: ' + composite + ' pts';
+                            setTimeout(() => { this.successToast = ''; }, 4000);
+                            this.hackathonGradingSubmission = null;
+                            this.loadHackathonSubmissions();
+                            this.loadLeaderboard();
+                        }
+                    } catch(e) {
+                        this.successToast = '❌ Grading failed.';
+                        setTimeout(() => { this.successToast = ''; }, 3000);
+                    }
+                    this.isGrading = false;
+                },
+
+                exportLeaderboard() {
+                    if (!this.leaderboardData.length) { this.successToast = '⚠️ No data to export.'; setTimeout(() => { this.successToast = ''; }, 2000); return; }
+                    const headers = ['Rank','Name','Email','Solved','Correctness%','AvgTime(min)','QualityScore','FinalScore','Status'];
+                    const rows = this.leaderboardData.map((e,i) => [i+1, e.name, e.email, e.solved+'/'+e.total, e.correctness, e.avgTime||'', e.qualityScore||'', e.finalScore||'', e.status]);
+                    const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = 'hackathon_results.csv';
+                    a.click();
                 },
 
                 downloadLogs() {

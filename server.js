@@ -659,70 +659,34 @@ app.get('/api/leaderboard', (req, res) => {
 // POST /api/submit — Submit assignment (requires auth)
 app.post('/api/submit', submitRateLimit, requireAuth, (req, res) => {
     const data = req.body;
-    const email = req.user.email;
-    const projectId = data.projectId || '';
+    const submissionId = 'SUB-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
 
     try {
-        // Check if candidate already submitted this exact problem
-        const existing = db.prepare(
-            'SELECT id FROM submissions WHERE email = ? AND project_id = ?'
-        ).get(email, projectId);
-
-        if (existing) {
-            // UPDATE the existing submission — no duplicates allowed
-            db.prepare(`
-                UPDATE submissions SET
-                    candidate_name = ?, project_title = ?, topic_id = ?, topic_name = ?,
-                    day = ?, code = ?, test_results = ?, tests_passed = ?, tests_total = ?,
-                    auto_score = ?, violation_count = ?, violation_log = ?,
-                    status = 'pending', submitted_at = datetime('now'), grade = NULL
-                WHERE email = ? AND project_id = ?
-            `).run(
-                data.candidateName || req.user.name,
-                data.projectTitle || '',
-                data.topicId || '',
-                data.topicName || '',
-                data.day || 1,
-                JSON.stringify(data.code || []),
-                JSON.stringify(data.testResults || []),
-                data.testsPassed || 0,
-                data.testsTotal || 0,
-                data.autoScore || 0,
-                data.violationCount || 0,
-                JSON.stringify(data.violationLog || []),
-                email, projectId
-            );
-            console.log(`[Submit] Updated existing submission for ${email} / ${projectId}`);
-            res.json({ success: true, submissionId: existing.id, updated: true });
-        } else {
-            // INSERT new submission
-            const submissionId = 'SUB-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
-            db.prepare(`
-                INSERT INTO submissions (
-                    id, candidate_name, email, project_id, project_title,
-                    topic_id, topic_name, day, code, test_results,
-                    tests_passed, tests_total, auto_score, violation_count, violation_log,
-                    status, submitted_at, grade
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now'), NULL)
-            `).run(
-                submissionId,
-                data.candidateName || req.user.name,
-                email,
-                projectId,
-                data.projectTitle || '',
-                data.topicId || '',
-                data.topicName || '',
-                data.day || 1,
-                JSON.stringify(data.code || []),
-                JSON.stringify(data.testResults || []),
-                data.testsPassed || 0,
-                data.testsTotal || 0,
-                data.autoScore || 0,
-                data.violationCount || 0,
-                JSON.stringify(data.violationLog || [])
-            );
-            res.json({ success: true, submissionId });
-        }
+        db.prepare(`
+            INSERT INTO submissions (
+                id, candidate_name, email, project_id, project_title,
+                topic_id, topic_name, day, code, test_results,
+                tests_passed, tests_total, auto_score, violation_count, violation_log,
+                status, submitted_at, grade
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now'), NULL)
+        `).run(
+            submissionId,
+            data.candidateName || req.user.name,
+            data.email || req.user.email,
+            data.projectId || '',
+            data.projectTitle || '',
+            data.topicId || '',
+            data.topicName || '',
+            data.day || 1,
+            JSON.stringify(data.code || []),
+            JSON.stringify(data.testResults || []),
+            data.testsPassed || 0,
+            data.testsTotal || 0,
+            data.autoScore || 0,
+            data.violationCount || 0,
+            JSON.stringify(data.violationLog || [])
+        );
+        res.json({ success: true, submissionId });
     } catch (e) {
         console.error('[Submit]', e.message);
         res.status(400).json({ error: e.message });
@@ -731,34 +695,24 @@ app.post('/api/submit', submitRateLimit, requireAuth, (req, res) => {
 
 // GET /api/submissions — All submissions (admin only) with optional filters
 app.get('/api/submissions', requireAdmin, (req, res) => {
-    // Deduplicated — latest submission per candidate per problem only
-    let query = `
-        SELECT s.id, s.candidate_name, s.email, s.project_id, s.project_title,
-               s.topic_id, s.topic_name, s.day, s.tests_passed, s.tests_total,
-               s.auto_score, s.status, s.submitted_at, s.violation_count, s.grade
-        FROM submissions s
-        INNER JOIN (
-            SELECT email, project_id, MAX(submitted_at) as latest
-            FROM submissions
-            GROUP BY email, project_id
-        ) best ON s.email = best.email
-              AND s.project_id = best.project_id
-              AND s.submitted_at = best.latest
-        WHERE 1=1`;
+    let query = `SELECT id, candidate_name, email, project_id, project_title,
+                        topic_id, topic_name, day, tests_passed, tests_total,
+                        auto_score, status, submitted_at, violation_count, grade
+                 FROM submissions WHERE 1=1`;
     const params = [];
 
-    if (req.query.status && req.query.status !== 'all') { query += ' AND s.status = ?'; params.push(req.query.status); }
-    if (req.query.email) { query += ' AND s.email = ?'; params.push(req.query.email); }
-    query += ' ORDER BY s.submitted_at DESC';
+    if (req.query.day) { query += ' AND day = ?'; params.push(req.query.day); }
+    if (req.query.status && req.query.status !== 'all') { query += ' AND status = ?'; params.push(req.query.status); }
+    if (req.query.email) { query += ' AND email = ?'; params.push(req.query.email); }
 
-    try {
-        const rows = db.prepare(query).all(...params);
-        const result = rows.map(r => ({ ...r, grade: r.grade ? JSON.parse(r.grade) : null }));
-        res.json(result);
-    } catch(e) {
-        console.error('[Submissions] Query error:', e.message);
-        res.status(500).json({ error: e.message });
-    }
+    query += ' ORDER BY submitted_at DESC';
+
+    const rows = db.prepare(query).all(...params);
+    const result = rows.map(r => ({
+        ...r,
+        grade: r.grade ? JSON.parse(r.grade) : null
+    }));
+    res.json(result);
 });
 
 // GET /api/submission/:id — Full detail of one submission (admin only)
@@ -777,19 +731,11 @@ app.get('/api/submission/:id', requireAdmin, (req, res) => {
 // POST /api/my-submissions — Get submissions for the logged-in candidate
 app.post('/api/my-submissions', requireAuth, (req, res) => {
     const email = req.user.email;
-    // Return only latest submission per problem — no duplicates shown to candidate
     const rows = db.prepare(`
-        SELECT s.id, s.project_id, s.project_title, s.topic_name, s.day,
-               s.tests_passed, s.tests_total, s.auto_score, s.status, s.submitted_at, s.grade
-        FROM submissions s
-        INNER JOIN (
-            SELECT project_id, MAX(submitted_at) as latest
-            FROM submissions WHERE email = ?
-            GROUP BY project_id
-        ) best ON s.project_id = best.project_id AND s.submitted_at = best.latest
-        WHERE s.email = ?
-        ORDER BY s.submitted_at DESC
-    `).all(email, email);
+        SELECT id, project_id, project_title, topic_name, day,
+               tests_passed, tests_total, auto_score, status, submitted_at, grade
+        FROM submissions WHERE email = ? ORDER BY submitted_at DESC
+    `).all(email);
     const result = rows.map(r => ({
         ...r,
         grade: r.grade ? JSON.parse(r.grade) : null
@@ -1148,169 +1094,172 @@ app.use((req, res, next) => {
     });
 });
 
-// GET /api/admin/db-stats — DB diagnostics (admin only, free tier friendly)
-app.get('/api/admin/db-stats', requireAdmin, (req, res) => {
-    try {
-        const totalRaw = db.prepare('SELECT COUNT(*) as c FROM submissions').get().c;
-        const totalUnique = db.prepare('SELECT COUNT(DISTINCT email || project_id) as c FROM submissions').get().c;
-        const userCount = db.prepare("SELECT COUNT(*) as c FROM users WHERE role='candidate'").get().c;
-        const progressCount = db.prepare('SELECT COUNT(*) as c FROM progress WHERE solved=1').get().c;
-        const byStatus = db.prepare('SELECT status, COUNT(*) as count FROM submissions GROUP BY status').all();
-        const recent = db.prepare(`
-            SELECT s.id, s.candidate_name, s.email, s.project_title, s.submitted_at, s.status
-            FROM submissions s
-            INNER JOIN (
-                SELECT email, project_id, MAX(submitted_at) as latest
-                FROM submissions GROUP BY email, project_id
-            ) best ON s.email=best.email AND s.project_id=best.project_id AND s.submitted_at=best.latest
-            ORDER BY s.submitted_at DESC LIMIT 20`).all();
-        res.json({
-            submissions: { total: totalUnique, rawTotal: totalRaw, duplicates: totalRaw - totalUnique, byStatus, recent },
-            candidates: userCount,
-            solvedProblems: progressCount,
-            dbPath: DB_PATH
-        });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
+// ══════════════════════════════════════════════════════
+// HACKATHON API
+// ══════════════════════════════════════════════════════
 
-// POST /api/admin/cleanup-duplicates — Remove duplicate submissions, keep latest per candidate/problem
-app.post('/api/admin/cleanup-duplicates', requireAdmin, (req, res) => {
-    try {
-        const before = db.prepare('SELECT COUNT(*) as c FROM submissions').get().c;
-        // Delete older duplicates — keep only the latest per email+project_id
-        db.prepare(`
-            DELETE FROM submissions
-            WHERE id NOT IN (
-                SELECT s.id FROM submissions s
-                INNER JOIN (
-                    SELECT email, project_id, MAX(submitted_at) as latest
-                    FROM submissions GROUP BY email, project_id
-                ) best ON s.email=best.email AND s.project_id=best.project_id AND s.submitted_at=best.latest
-            )
-        `).run();
-        const after = db.prepare('SELECT COUNT(*) as c FROM submissions').get().c;
-        res.json({ success: true, removed: before - after, remaining: after });
-    } catch(e) { res.status(500).json({ error: e.message }); }
-});
-
-// GET /health — Public health check with DB stats
-app.get('/health', (req, res) => {
-    let submissions = 0, users = 0;
-    try {
-        submissions = db.prepare('SELECT COUNT(DISTINCT email || project_id) as c FROM submissions').get().c;
-        users = db.prepare('SELECT COUNT(*) as c FROM users').get().c;
-    } catch(e) {}
-    res.json({ status: 'ok', uptime: Math.round(process.uptime()), db: DB_PATH, submissions, users });
-});
-
-// POST /api/admin/ai-grade — Proxy Claude API for AI code review (admin only, key stays server-side)
-app.post('/api/admin/ai-grade', requireAdmin, async (req, res) => {
-    const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
-    if (!ANTHROPIC_KEY) {
-        return res.status(503).json({ error: 'AI grading not configured. Set ANTHROPIC_API_KEY in Render environment.' });
-    }
-
-    const { submissionId, projectId, projectTitle, projectStatement, acceptance, testCases, testResults, autoScore, violationCount } = req.body;
-
-    if (!submissionId) return res.status(400).json({ error: 'submissionId required' });
-
-    // Fetch the actual code from DB
-    const row = db.prepare('SELECT code, candidate_name FROM submissions WHERE id = ?').get(submissionId);
-    if (!row) return res.status(404).json({ error: 'Submission not found' });
-
-    let code = '';
-    try {
-        const files = JSON.parse(row.code || '[]');
-        code = Array.isArray(files) ? files.map(f => `// File: ${f.name}\n${f.content}`).join('\n\n') : String(files);
-    } catch(e) { code = row.code || 'No code'; }
-
-    const prompt = `You are an expert C programming instructor grading a Visteon embedded systems assignment.
-
-CANDIDATE: ${row.candidate_name}
-PROBLEM: ${projectTitle || projectId}
-
-PROBLEM STATEMENT:
-${projectStatement || 'Not available'}
-
-ACCEPTANCE CRITERIA (check each one carefully):
-${(acceptance || []).map((a, i) => `${i+1}. ${a}`).join('\n') || 'Not specified'}
-
-TEST CASES:
-${(testCases || []).map(t => `- ${t.name}: Input="${t.stdin}" Expected="${t.expectedOutput}"`).join('\n') || 'Not specified'}
-
-AUTO-GRADER RESULTS:
-${(testResults || []).map(t => `- ${t.name}: ${t.passed ? 'PASS' : 'FAIL'}`).join('\n') || 'No results'}
-Auto Score: ${autoScore || 0}%
-Violations (tab switches / copy-paste): ${violationCount || 0}
-
-SUBMITTED CODE:
-${code}
-
-Review this code thoroughly against EVERY acceptance criterion. Return ONLY valid JSON with no markdown fences:
-{
-  "criteria": [
-    {"criterion": "exact criterion text", "met": true/false, "reason": "specific explanation referencing the code"}
-  ],
-  "suggestedScores": [
-    {"key": "correctness", "label": "Correctness", "score": 0},
-    {"key": "codeQuality", "label": "Code Quality", "score": 0},
-    {"key": "logic", "label": "Logic & Approach", "score": 0},
-    {"key": "style", "label": "Code Style", "score": 0}
-  ],
-  "issues": ["specific issue found in the code"],
-  "summary": "2-3 sentence overall assessment",
-  "feedbackForCandidate": "Constructive 2-4 sentence feedback for the candidate, specific and actionable"
+// In-memory hackathon session (persisted to SQLite)
+function initHackathonTables(db) {
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS hackathon_sessions (
+            id TEXT PRIMARY KEY,
+            title TEXT,
+            topicId TEXT,
+            duration INTEGER,
+            status TEXT DEFAULT 'pending',
+            problems TEXT,
+            startTime TEXT,
+            endTime TEXT,
+            createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE TABLE IF NOT EXISTS hackathon_submissions (
+            id TEXT PRIMARY KEY,
+            sessionId TEXT,
+            candidateName TEXT,
+            email TEXT,
+            projectId TEXT,
+            projectTitle TEXT,
+            topicId TEXT,
+            topicName TEXT,
+            code TEXT,
+            testResults TEXT,
+            testsPassed INTEGER DEFAULT 0,
+            testsTotal INTEGER DEFAULT 0,
+            autoScore REAL DEFAULT 0,
+            solveTime INTEGER DEFAULT 0,
+            attempts INTEGER DEFAULT 1,
+            hackathonGrade TEXT,
+            submittedAt TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
 }
 
-Scoring guide: 0=not attempted, 3=wrong approach, 5=partial, 7=mostly correct minor issues, 9=correct good style, 10=excellent.`;
+function getDB() {
+    const Database = require('better-sqlite3');
+    const db = new Database('./submissions.db');
+    initHackathonTables(db);
+    return db;
+}
 
+// Start hackathon session
+app.post('/api/hackathon/start', requireAdmin, (req, res) => {
     try {
-        const https = require('https');
-        const body = JSON.stringify({
-            model: 'claude-sonnet-4-20250514',
-            max_tokens: 1200,
-            messages: [{ role: 'user', content: prompt }]
-        });
+        const db = getDB();
+        const { title, duration, topicId, problems } = req.body;
+        const id = 'hack_' + Date.now();
+        const startTime = new Date().toISOString();
+        const endTime = new Date(Date.now() + duration * 60000).toISOString();
+        const session = { id, title, topicId, duration, status: 'active', problems, startTime, endTime };
+        db.prepare(`INSERT OR REPLACE INTO hackathon_sessions (id,title,topicId,duration,status,problems,startTime,endTime) VALUES (?,?,?,?,?,?,?,?)`)
+          .run(id, title, topicId, duration, 'active', JSON.stringify(problems), startTime, endTime);
+        db.close();
+        res.json({ success: true, session });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
-        const result = await new Promise((resolve, reject) => {
-            const reqOptions = {
-                hostname: 'api.anthropic.com',
-                path: '/v1/messages',
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': ANTHROPIC_KEY,
-                    'anthropic-version': '2023-06-01',
-                    'Content-Length': Buffer.byteLength(body)
-                }
-            };
-            const apiReq = https.request(reqOptions, (apiRes) => {
-                let data = '';
-                apiRes.on('data', chunk => data += chunk);
-                apiRes.on('end', () => {
-                    try {
-                        const parsed = JSON.parse(data);
-                        if (parsed.error) return reject(new Error(parsed.error.message || 'Claude API error'));
-                        resolve(parsed);
-                    } catch(e) { reject(new Error('Invalid response from Claude API')); }
-                });
-            });
-            apiReq.on('error', reject);
-            apiReq.setTimeout(30000, () => { apiReq.destroy(); reject(new Error('Claude API timeout')); });
-            apiReq.write(body);
-            apiReq.end();
-        });
+// End hackathon session
+app.post('/api/hackathon/end', requireAdmin, (req, res) => {
+    try {
+        const db = getDB();
+        const { sessionId } = req.body;
+        db.prepare(`UPDATE hackathon_sessions SET status='ended' WHERE id=?`).run(sessionId);
+        db.close();
+        res.json({ success: true });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
 
-        const text = result.content?.[0]?.text || '';
-        const clean = text.replace(/```json|```/g, '').trim();
-        const gradeResult = JSON.parse(clean);
-        console.log(`[AI Grade] ${row.candidate_name} / ${projectId} — ${gradeResult.criteria?.filter(c=>c.met).length}/${gradeResult.criteria?.length} criteria met`);
-        res.json({ success: true, result: gradeResult });
+// Get current active hackathon session
+app.get('/api/hackathon/session', (req, res) => {
+    try {
+        const db = getDB();
+        const row = db.prepare(`SELECT * FROM hackathon_sessions WHERE status='active' ORDER BY createdAt DESC LIMIT 1`).get();
+        db.close();
+        if (!row) return res.json(null);
+        const session = { ...row, problems: JSON.parse(row.problems || '[]') };
+        // Auto-end if past endTime
+        if (new Date(row.endTime) < new Date()) session.status = 'ended';
+        res.json(session);
+    } catch(e) { res.json(null); }
+});
 
-    } catch(e) {
-        console.error('[AI Grade] Error:', e.message);
-        res.status(500).json({ error: 'AI grading failed: ' + e.message });
-    }
+// Submit hackathon solution
+app.post('/api/hackathon/submit', (req, res) => {
+    try {
+        const db = getDB();
+        const { sessionId, candidateName, email, projectId, projectTitle, topicId, topicName, code, testResults, testsPassed, testsTotal, autoScore, solveTime, attempts } = req.body;
+        const id = 'hsub_' + Date.now() + '_' + Math.random().toString(36).substr(2,5);
+        // Check if already submitted this problem — update instead
+        const existing = db.prepare(`SELECT id FROM hackathon_submissions WHERE email=? AND projectId=? AND sessionId=?`).get(email, projectId, sessionId || '');
+        if (existing) {
+            db.prepare(`UPDATE hackathon_submissions SET code=?,testResults=?,testsPassed=?,testsTotal=?,autoScore=?,solveTime=?,attempts=?,submittedAt=CURRENT_TIMESTAMP WHERE id=?`)
+              .run(JSON.stringify(code), JSON.stringify(testResults), testsPassed, testsTotal, autoScore, solveTime, attempts, existing.id);
+            db.close();
+            return res.json({ success: true, submissionId: existing.id });
+        }
+        db.prepare(`INSERT INTO hackathon_submissions (id,sessionId,candidateName,email,projectId,projectTitle,topicId,topicName,code,testResults,testsPassed,testsTotal,autoScore,solveTime,attempts) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+          .run(id, sessionId||'', candidateName, email, projectId, projectTitle, topicId, topicName, JSON.stringify(code), JSON.stringify(testResults), testsPassed, testsTotal, autoScore, solveTime, attempts);
+        db.close();
+        res.json({ success: true, submissionId: id });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get all hackathon submissions (admin)
+app.get('/api/hackathon/submissions', requireAdmin, (req, res) => {
+    try {
+        const db = getDB();
+        const rows = db.prepare(`SELECT * FROM hackathon_submissions ORDER BY submittedAt DESC`).all();
+        db.close();
+        res.json(rows.map(r => ({ ...r, code: JSON.parse(r.code||'[]'), testResults: JSON.parse(r.testResults||'[]'), hackathonGrade: r.hackathonGrade ? JSON.parse(r.hackathonGrade) : null })));
+    } catch(e) { res.json([]); }
+});
+
+// Grade a hackathon submission
+app.post('/api/hackathon/grade', requireAdmin, (req, res) => {
+    try {
+        const db = getDB();
+        const { submissionId, manualScores, comments, compositeScore, trainerName } = req.body;
+        const grade = JSON.stringify({ manualScores, comments, compositeScore, trainerName, gradedAt: new Date().toISOString() });
+        db.prepare(`UPDATE hackathon_submissions SET hackathonGrade=? WHERE id=?`).run(grade, submissionId);
+        db.close();
+        res.json({ success: true, compositeScore });
+    } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// Get leaderboard
+app.get('/api/hackathon/leaderboard', (req, res) => {
+    try {
+        const db = getDB();
+        const rows = db.prepare(`SELECT * FROM hackathon_submissions ORDER BY submittedAt DESC`).all();
+        db.close();
+        // Aggregate by candidate
+        const byCandidate = {};
+        for (const r of rows) {
+            const grade = r.hackathonGrade ? JSON.parse(r.hackathonGrade) : null;
+            if (!byCandidate[r.email]) {
+                byCandidate[r.email] = { name: r.candidateName, email: r.email, solved: 0, total: 0, scores: [], times: [], qualityScores: [], finalScores: [], status: 'pending' };
+            }
+            const c = byCandidate[r.email];
+            c.total++;
+            if (r.autoScore === 100) c.solved++;
+            c.scores.push(r.autoScore || 0);
+            if (r.solveTime) c.times.push(r.solveTime);
+            if (grade) {
+                c.qualityScores.push(grade.manualScores?.codeQuality || 0);
+                c.finalScores.push(grade.compositeScore || 0);
+                c.status = 'graded';
+            }
+        }
+        const leaderboard = Object.values(byCandidate).map(c => ({
+            name: c.name, email: c.email,
+            solved: c.solved, total: c.total,
+            correctness: c.scores.length ? Math.round(c.scores.reduce((a,b)=>a+b,0)/c.scores.length) : 0,
+            avgTime: c.times.length ? Math.round(c.times.reduce((a,b)=>a+b,0)/c.times.length) : null,
+            qualityScore: c.qualityScores.length ? (c.qualityScores.reduce((a,b)=>a+b,0)/c.qualityScores.length).toFixed(1) : null,
+            finalScore: c.finalScores.length ? Math.round(c.finalScores.reduce((a,b)=>a+b,0)/c.finalScores.length) : null,
+            status: c.status
+        })).sort((a,b) => (b.finalScore||b.correctness) - (a.finalScore||a.correctness));
+        res.json(leaderboard);
+    } catch(e) { res.json([]); }
 });
 
 // ══════════════════════════════════════════════════════
