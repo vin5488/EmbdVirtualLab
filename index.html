@@ -5745,6 +5745,60 @@
             ctx.shadowBlur = 0; // Reset shadow for next frame
         };
     </script>
+
+<!-- ================= HACKATHON MODULE ================= -->
+<div x-show="currentView === 'hackathon_arena'" class="h-full overflow-y-auto p-10 bg-slate-950">
+
+    <h2 class="text-3xl font-black text-purple-400 mb-6">⚡ Hackathon Arena</h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <template x-for="problem in hackathonProblems" :key="problem.id">
+            <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+                <h3 class="text-lg font-bold text-white" x-text="problem.title"></h3>
+                <p class="text-sm text-slate-400 mt-2" x-text="problem.description"></p>
+
+                <button @click="openHackathonProblem(problem)"
+                    class="mt-4 bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg text-sm font-bold">
+                    Solve Problem
+                </button>
+            </div>
+        </template>
+    </div>
+
+    <div x-show="selectedHackathonProblem" class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+        <h3 class="text-lg font-bold text-white mb-4">Submit Solution</h3>
+
+        <textarea x-model="hackathonCode"
+            class="w-full h-40 bg-slate-950 border border-slate-700 rounded-xl p-4"></textarea>
+
+        <div class="flex gap-4 mt-4">
+            <button @click="submitHackathonCode()"
+                class="bg-emerald-600 hover:bg-emerald-500 px-6 py-2 rounded-lg font-bold">
+                Submit Code
+            </button>
+        </div>
+
+        <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl mt-6">
+            <h3 class="text-lg font-bold text-amber-400 mb-4">📊 Evaluation Metrics</h3>
+
+            <div class="grid grid-cols-3 gap-6">
+                <div class="bg-slate-950 p-4 rounded-xl">
+                    <div class="text-xs text-slate-500">Correctness</div>
+                    <div class="text-xl font-bold text-white" x-text="evaluation.correctness + '%'"></div>
+                </div>
+                <div class="bg-slate-950 p-4 rounded-xl">
+                    <div class="text-xs text-slate-500">Performance</div>
+                    <div class="text-xl font-bold text-white" x-text="evaluation.performance + '%'"></div>
+                </div>
+                <div class="bg-slate-950 p-4 rounded-xl">
+                    <div class="text-xs text-slate-500">Quality</div>
+                    <div class="text-xl font-bold text-white" x-text="evaluation.quality + '%'"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 </body>
 
 </html>
