@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -591,7 +591,39 @@
                 </div>
             </div>
 
-            <!-- Workspace View -->
+            
+<!-- ================= HACKATHON ARENA ================= -->
+<div x-show="currentView === 'hackathon_arena'" class="h-full overflow-y-auto p-10 bg-slate-950">
+    <h2 class="text-3xl font-black text-purple-400 mb-6">⚡ Hackathon Arena</h2>
+
+    <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
+        <p class="text-slate-400 mb-4">Hackathon module is now active.</p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <template x-for="problem in hackathonProblems" :key="problem.id">
+                <div class="bg-slate-800 p-4 rounded-xl">
+                    <h3 class="text-white font-bold" x-text="problem.title"></h3>
+                    <button @click="selectedHackathonProblem = problem"
+                        class="mt-2 bg-purple-600 px-3 py-1 rounded">Solve</button>
+                </div>
+            </template>
+        </div>
+
+        <div x-show="selectedHackathonProblem" class="mt-6">
+            <textarea x-model="hackathonCode" class="w-full h-32 bg-slate-950 border border-slate-700"></textarea>
+            <button @click="submitHackathonCode()" class="mt-2 bg-emerald-600 px-4 py-2 rounded">
+                Submit Code
+            </button>
+
+            <div class="mt-4 text-white">
+                Correctness: <span x-text="evaluation.correctness"></span> |
+                Performance: <span x-text="evaluation.performance"></span> |
+                Quality: <span x-text="evaluation.quality"></span>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Workspace View -->
             <div x-show="currentView === 'workspace'" class="h-full flex overflow-hidden">
                 <!-- Sidebar -->
                 <aside class="w-80 bg-slate-900 border-r border-slate-800 flex flex-col shrink-0">
