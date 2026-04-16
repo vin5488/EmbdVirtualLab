@@ -1375,3 +1375,8 @@ app.get('/api/hackathon/leaderboard', (req, res) => {
         res.json([]);
     }
 });
+
+// START THE SERVER
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[Worker ${WORKER_ID}, PID ${process.pid}] Express app listening on port ${PORT}`);
+});
