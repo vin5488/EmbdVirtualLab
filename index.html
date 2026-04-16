@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -592,37 +592,18 @@
             </div>
 
             
-<!-- ================= HACKATHON ARENA ================= -->
-<div x-show="currentView === 'hackathon_arena'" class="h-full overflow-y-auto p-10 bg-slate-950">
-    <h2 class="text-3xl font-black text-purple-400 mb-6">⚡ Hackathon Arena</h2>
+<div x-show="currentView === 'hackathon_arena' && hackathonEnabled" class="h-full overflow-y-auto p-10 bg-slate-950">
+<h2 class="text-3xl font-black text-purple-400 mb-6">⚡ Hackathon Arena</h2>
 
-    <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl mb-6">
-        <h3 class="text-lg font-bold text-white">CAN Message Parser</h3>
-        <p class="text-slate-400 mt-2">Parse CAN frame and extract signals efficiently</p>
-    </div>
-
-    <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl mb-6">
-        <textarea x-model="hackathonCode"
-            class="w-full h-56 bg-slate-950 border border-slate-700 rounded-xl p-4 code-font"></textarea>
-
-        <button @click="submitHackathonCode()"
-            class="mt-4 bg-emerald-600 px-6 py-2 rounded-lg font-bold">
-            Submit Solution
-        </button>
-    </div>
-
-    <div class="bg-slate-900 border border-slate-800 p-6 rounded-2xl">
-        <h3 class="text-white font-bold mb-4">My Submissions</h3>
-        <template x-for="sub in myHackathonSubmissions" :key="sub.id">
-            <div class="border-b border-slate-800 py-3">
-                <div class="text-sm text-white">
-                    Score: <span x-text="sub.score || 'Pending'"></span>
-                </div>
-                <div class="text-xs text-slate-400" x-text="sub.feedback || 'Awaiting evaluation'"></div>
-            </div>
-        </template>
-    </div>
+<div class="bg-slate-900 p-6 rounded-xl mb-4">
+<h3 x-text="hackathonProblem.title" class="text-white font-bold"></h3>
+<p x-text="hackathonProblem.description" class="text-slate-400"></p>
 </div>
+
+<textarea x-model="hackathonCode" class="w-full h-40 bg-black text-white"></textarea>
+<button @click="submitHackathonCode()" class="bg-green-600 p-2 mt-2">Submit</button>
+</div>
+
 <!-- Workspace View -->
             <div x-show="currentView === 'workspace'" class="h-full flex overflow-hidden">
                 <!-- Sidebar -->
@@ -2915,6 +2896,52 @@
             const isAdmin = params.get('admin') === 'true';
 
             return {
+
+// ===== HACKATHON FULL MODULE =====
+hackathonEnabled: false,
+hackathonProblem: {},
+hackathonCode: "",
+myHackathonSubmissions: [],
+allHackathonSubmissions: [],
+
+initHackathonForUser() {
+    if (this.user && this.user.role === 'candidate' && window.isVisteonUser(this.user.email)) {
+        this.hackathonEnabled = true;
+        this.hackathonProblem = {
+            id: 1,
+            title: "CAN Message Parser",
+            description: "Parse CAN frame and extract signals efficiently"
+        };
+    }
+},
+
+async submitHackathonCode() {
+    if (!this.hackathonCode) {
+        alert("Write code first");
+        return;
+    }
+    await fetch('/api/hackathon/submit', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+        body: JSON.stringify({problemId:this.hackathonProblem.id,code:this.hackathonCode})
+    });
+    alert("Submitted");
+},
+
+async loadAllSubmissions() {
+    const res = await fetch('/api/hackathon/all-submissions');
+    this.allHackathonSubmissions = await res.json();
+},
+
+async evaluateSubmission(sub) {
+    await fetch('/api/hackathon/evaluate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(sub)
+    });
+    alert("Evaluated");
+},
+
                 isLoggedIn: false, // Enforce login screen
                 authLoading: false, // Auth API in-progress flag
                 authStep: isAdmin ? 'admin_login' : 'details',
@@ -4259,7 +4286,53 @@
                         if (this.topicFilter.length && !this.topicFilter.includes(p.topicId)) return false;
                         return p.topicId === this.selectedTopic.id;
                     }).map(p => {
-                        return { ...p, solved: this.solvedProjectIds.includes(p.id) };
+                        return {
+
+// ===== HACKATHON FULL MODULE =====
+hackathonEnabled: false,
+hackathonProblem: {},
+hackathonCode: "",
+myHackathonSubmissions: [],
+allHackathonSubmissions: [],
+
+initHackathonForUser() {
+    if (this.user && this.user.role === 'candidate' && window.isVisteonUser(this.user.email)) {
+        this.hackathonEnabled = true;
+        this.hackathonProblem = {
+            id: 1,
+            title: "CAN Message Parser",
+            description: "Parse CAN frame and extract signals efficiently"
+        };
+    }
+},
+
+async submitHackathonCode() {
+    if (!this.hackathonCode) {
+        alert("Write code first");
+        return;
+    }
+    await fetch('/api/hackathon/submit', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+        body: JSON.stringify({problemId:this.hackathonProblem.id,code:this.hackathonCode})
+    });
+    alert("Submitted");
+},
+
+async loadAllSubmissions() {
+    const res = await fetch('/api/hackathon/all-submissions');
+    this.allHackathonSubmissions = await res.json();
+},
+
+async evaluateSubmission(sub) {
+    await fetch('/api/hackathon/evaluate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(sub)
+    });
+    alert("Evaluated");
+},
+ ...p, solved: this.solvedProjectIds.includes(p.id) };
                     });
                 },
 
@@ -4501,7 +4574,53 @@
                                 return await this.compileJudge0(src, stdin);
                             }
                         } catch (e) {
-                            return { error: e.message };
+                            return {
+
+// ===== HACKATHON FULL MODULE =====
+hackathonEnabled: false,
+hackathonProblem: {},
+hackathonCode: "",
+myHackathonSubmissions: [],
+allHackathonSubmissions: [],
+
+initHackathonForUser() {
+    if (this.user && this.user.role === 'candidate' && window.isVisteonUser(this.user.email)) {
+        this.hackathonEnabled = true;
+        this.hackathonProblem = {
+            id: 1,
+            title: "CAN Message Parser",
+            description: "Parse CAN frame and extract signals efficiently"
+        };
+    }
+},
+
+async submitHackathonCode() {
+    if (!this.hackathonCode) {
+        alert("Write code first");
+        return;
+    }
+    await fetch('/api/hackathon/submit', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+        body: JSON.stringify({problemId:this.hackathonProblem.id,code:this.hackathonCode})
+    });
+    alert("Submitted");
+},
+
+async loadAllSubmissions() {
+    const res = await fetch('/api/hackathon/all-submissions');
+    this.allHackathonSubmissions = await res.json();
+},
+
+async evaluateSubmission(sub) {
+    await fetch('/api/hackathon/evaluate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(sub)
+    });
+    alert("Evaluated");
+},
+ error: e.message };
                         }
                     };
 
@@ -4708,6 +4827,52 @@
                         // Judge0 status ids: 1: In Queue, 2: Processing, 3: Accepted, 4: Wrong Answer, etc.
                         // We treat anything other than 3 as an error/issue
                         return {
+
+// ===== HACKATHON FULL MODULE =====
+hackathonEnabled: false,
+hackathonProblem: {},
+hackathonCode: "",
+myHackathonSubmissions: [],
+allHackathonSubmissions: [],
+
+initHackathonForUser() {
+    if (this.user && this.user.role === 'candidate' && window.isVisteonUser(this.user.email)) {
+        this.hackathonEnabled = true;
+        this.hackathonProblem = {
+            id: 1,
+            title: "CAN Message Parser",
+            description: "Parse CAN frame and extract signals efficiently"
+        };
+    }
+},
+
+async submitHackathonCode() {
+    if (!this.hackathonCode) {
+        alert("Write code first");
+        return;
+    }
+    await fetch('/api/hackathon/submit', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+        body: JSON.stringify({problemId:this.hackathonProblem.id,code:this.hackathonCode})
+    });
+    alert("Submitted");
+},
+
+async loadAllSubmissions() {
+    const res = await fetch('/api/hackathon/all-submissions');
+    this.allHackathonSubmissions = await res.json();
+},
+
+async evaluateSubmission(sub) {
+    await fetch('/api/hackathon/evaluate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(sub)
+    });
+    alert("Evaluated");
+},
+
                             error: result.status.id > 3,
                             stdout: result.stdout ? atob(result.stdout) : "",
                             stderr: result.stderr ? atob(result.stderr) : "",
@@ -4733,7 +4898,53 @@
                         });
                         return await response.json();
                     } catch (e) {
-                        return { error: true, compile_output: 'Failed to connect to integrated toolchain.' };
+                        return {
+
+// ===== HACKATHON FULL MODULE =====
+hackathonEnabled: false,
+hackathonProblem: {},
+hackathonCode: "",
+myHackathonSubmissions: [],
+allHackathonSubmissions: [],
+
+initHackathonForUser() {
+    if (this.user && this.user.role === 'candidate' && window.isVisteonUser(this.user.email)) {
+        this.hackathonEnabled = true;
+        this.hackathonProblem = {
+            id: 1,
+            title: "CAN Message Parser",
+            description: "Parse CAN frame and extract signals efficiently"
+        };
+    }
+},
+
+async submitHackathonCode() {
+    if (!this.hackathonCode) {
+        alert("Write code first");
+        return;
+    }
+    await fetch('/api/hackathon/submit', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+        body: JSON.stringify({problemId:this.hackathonProblem.id,code:this.hackathonCode})
+    });
+    alert("Submitted");
+},
+
+async loadAllSubmissions() {
+    const res = await fetch('/api/hackathon/all-submissions');
+    this.allHackathonSubmissions = await res.json();
+},
+
+async evaluateSubmission(sub) {
+    await fetch('/api/hackathon/evaluate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(sub)
+    });
+    alert("Evaluated");
+},
+ error: true, compile_output: 'Failed to connect to integrated toolchain.' };
                     }
                 },
 
@@ -5381,7 +5592,53 @@
                         });
 
                         const passRate = totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0;
-                        return { c, subs, totalTests, passedTests, avgScore, totalViolations, tabSwitches, copyPaste, passRate };
+                        return {
+
+// ===== HACKATHON FULL MODULE =====
+hackathonEnabled: false,
+hackathonProblem: {},
+hackathonCode: "",
+myHackathonSubmissions: [],
+allHackathonSubmissions: [],
+
+initHackathonForUser() {
+    if (this.user && this.user.role === 'candidate' && window.isVisteonUser(this.user.email)) {
+        this.hackathonEnabled = true;
+        this.hackathonProblem = {
+            id: 1,
+            title: "CAN Message Parser",
+            description: "Parse CAN frame and extract signals efficiently"
+        };
+    }
+},
+
+async submitHackathonCode() {
+    if (!this.hackathonCode) {
+        alert("Write code first");
+        return;
+    }
+    await fetch('/api/hackathon/submit', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+        body: JSON.stringify({problemId:this.hackathonProblem.id,code:this.hackathonCode})
+    });
+    alert("Submitted");
+},
+
+async loadAllSubmissions() {
+    const res = await fetch('/api/hackathon/all-submissions');
+    this.allHackathonSubmissions = await res.json();
+},
+
+async evaluateSubmission(sub) {
+    await fetch('/api/hackathon/evaluate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(sub)
+    });
+    alert("Evaluated");
+},
+ c, subs, totalTests, passedTests, avgScore, totalViolations, tabSwitches, copyPaste, passRate };
                     }).sort((a, b) => b.avgScore - a.avgScore);
 
                     ranked.forEach((r, i) => {
@@ -5557,7 +5814,53 @@
                         try {
                             const r = await fetch('/api/submission/' + s.id, { headers: this._authHeaders() });
                             const detail = await r.json();
-                            return { ...s, violation_log: detail.violation_log, test_results: detail.test_results };
+                            return {
+
+// ===== HACKATHON FULL MODULE =====
+hackathonEnabled: false,
+hackathonProblem: {},
+hackathonCode: "",
+myHackathonSubmissions: [],
+allHackathonSubmissions: [],
+
+initHackathonForUser() {
+    if (this.user && this.user.role === 'candidate' && window.isVisteonUser(this.user.email)) {
+        this.hackathonEnabled = true;
+        this.hackathonProblem = {
+            id: 1,
+            title: "CAN Message Parser",
+            description: "Parse CAN frame and extract signals efficiently"
+        };
+    }
+},
+
+async submitHackathonCode() {
+    if (!this.hackathonCode) {
+        alert("Write code first");
+        return;
+    }
+    await fetch('/api/hackathon/submit', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+        body: JSON.stringify({problemId:this.hackathonProblem.id,code:this.hackathonCode})
+    });
+    alert("Submitted");
+},
+
+async loadAllSubmissions() {
+    const res = await fetch('/api/hackathon/all-submissions');
+    this.allHackathonSubmissions = await res.json();
+},
+
+async evaluateSubmission(sub) {
+    await fetch('/api/hackathon/evaluate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(sub)
+    });
+    alert("Evaluated");
+},
+ ...s, violation_log: detail.violation_log, test_results: detail.test_results };
                         } catch { return s; }
                     }));
                     this._buildExcelReport(subs, `report_${candidate.email.replace('@', '_')}`);
@@ -5572,7 +5875,53 @@
                         try {
                             const r = await fetch('/api/submission/' + s.id, { headers: this._authHeaders() });
                             const detail = await r.json();
-                            return { ...s, violation_log: detail.violation_log, test_results: detail.test_results };
+                            return {
+
+// ===== HACKATHON FULL MODULE =====
+hackathonEnabled: false,
+hackathonProblem: {},
+hackathonCode: "",
+myHackathonSubmissions: [],
+allHackathonSubmissions: [],
+
+initHackathonForUser() {
+    if (this.user && this.user.role === 'candidate' && window.isVisteonUser(this.user.email)) {
+        this.hackathonEnabled = true;
+        this.hackathonProblem = {
+            id: 1,
+            title: "CAN Message Parser",
+            description: "Parse CAN frame and extract signals efficiently"
+        };
+    }
+},
+
+async submitHackathonCode() {
+    if (!this.hackathonCode) {
+        alert("Write code first");
+        return;
+    }
+    await fetch('/api/hackathon/submit', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+        body: JSON.stringify({problemId:this.hackathonProblem.id,code:this.hackathonCode})
+    });
+    alert("Submitted");
+},
+
+async loadAllSubmissions() {
+    const res = await fetch('/api/hackathon/all-submissions');
+    this.allHackathonSubmissions = await res.json();
+},
+
+async evaluateSubmission(sub) {
+    await fetch('/api/hackathon/evaluate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(sub)
+    });
+    alert("Evaluated");
+},
+ ...s, violation_log: detail.violation_log, test_results: detail.test_results };
                         } catch { return s; }
                     }));
                     this.successToast = '';
@@ -5781,3 +6130,15 @@
 </body>
 
 </html>
+<div x-show="currentView === 'hackathon_control'" class="p-6">
+<h2 class="text-xl text-purple-400">Admin Evaluation</h2>
+
+<template x-for="sub in allHackathonSubmissions">
+<div class="bg-slate-900 p-4 mt-3">
+<pre x-text="sub.code"></pre>
+<input x-model="sub.score" placeholder="score">
+<input x-model="sub.feedback" placeholder="feedback">
+<button @click="evaluateSubmission(sub)">Evaluate</button>
+</div>
+</template>
+</div>
