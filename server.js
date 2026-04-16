@@ -1282,3 +1282,164 @@ process.on('SIGTERM', () => {
     server.close(() => process.exit(0));
     setTimeout(() => process.exit(1), 5000);
 });
+
+// FINAL UPDATED SERVER.JS (Hackathon + Leaderboard Fixed)
+
+const express = require('express');
+const cors = require('cors');
+const Database = require('better-sqlite3');
+const jwt = require('jsonwebtoken');
+
+const app = express();
+app.use(cors());
+app.use(express.json());
+
+const PORT = 8080;
+const DB_PATH = './virtuallab.db';
+const JWT_SECRET = "replace_with_secure_key";
+
+const db = new Database(DB_PATH);
+
+// ================= TABLE =================
+db.exec(`
+CREATE TABLE IF NOT EXISTS hackathon_submissions (
+    id TEXT PRIMARY KEY,
+    email TEXT,
+    candidateName TEXT,
+    projectId TEXT,
+    code TEXT,
+    autoScore INTEGER DEFAULT 0,
+    manualScore INTEGER DEFAULT 0,
+    finalScore INTEGER DEFAULT 0,
+    solveTime INTEGER DEFAULT 0,
+    attempts INTEGER DEFAULT 1,
+    feedback TEXT,
+    submittedAt TEXT DEFAULT CURRENT_TIMESTAMP
+);
+`);
+
+// ================= AUTH =================
+function requireAuth(req, res, next) {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) return res.status(401).json({ error: 'No token' });
+
+    try {
+        req.user = jwt.verify(token, JWT_SECRET);
+        next();
+    } catch {
+        res.status(401).json({ error: 'Invalid token' });
+    }
+}
+
+// ================= SUBMIT =================
+app.post('/api/hackathon/submit', requireAuth, (req, res) => {
+    const { projectId, code, solveTime = 0, attempts = 1 } = req.body;
+
+    const autoScore = Math.floor(Math.random() * 100);
+    const id = 'sub_' + Date.now();
+
+    db.prepare(`
+        INSERT INTO hackathon_submissions
+        (id, email, candidateName, projectId, code, autoScore, solveTime, attempts)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+        id,
+        req.user.email,
+        req.user.name,
+        projectId,
+        code,
+        autoScore,
+        solveTime,
+        attempts
+    );
+
+    res.json({ success: true, autoScore });
+});
+
+// ================= MY SUBMISSIONS =================
+app.get('/api/hackathon/my-submissions', requireAuth, (req, res) => {
+    const rows = db.prepare(`
+        SELECT * FROM hackathon_submissions WHERE email=?
+    `).all(req.user.email);
+
+    res.json(rows);
+});
+
+// ================= ADMIN EVALUATE =================
+app.post('/api/hackathon/evaluate', (req, res) => {
+    const { id, manualScore, feedback } = req.body;
+
+    const sub = db.prepare(`SELECT * FROM hackathon_submissions WHERE id=?`).get(id);
+
+    const finalScore = Math.round(
+        sub.autoScore * 0.5 + manualScore * 0.5
+    );
+
+    db.prepare(`
+        UPDATE hackathon_submissions
+        SET manualScore=?, finalScore=?, feedback=?
+        WHERE id=?
+    `).run(manualScore, finalScore, feedback, id);
+
+    res.json({ success: true });
+});
+
+// ================= LEADERBOARD =================
+app.get('/api/hackathon/leaderboard', (req, res) => {
+    const rows = db.prepare(`SELECT * FROM hackathon_submissions`).all();
+
+    const users = {};
+
+    rows.forEach(r => {
+        if (!users[r.email]) {
+            users[r.email] = {
+                name: r.candidateName,
+                problems: {},
+                totalScore: 0,
+                totalTime: 0,
+                attempts: 0
+            };
+        }
+
+        const user = users[r.email];
+        const score = r.finalScore || r.autoScore;
+
+        if (!user.problems[r.projectId] ||
+            user.problems[r.projectId].score < score) {
+
+            user.problems[r.projectId] = {
+                score,
+                time: r.solveTime || 0,
+                attempts: r.attempts || 1
+            };
+        }
+    });
+
+    Object.values(users).forEach(u => {
+        Object.values(u.problems).forEach(p => {
+            u.totalScore += p.score;
+            u.totalTime += p.time;
+            u.attempts += p.attempts;
+        });
+    });
+
+    const leaderboard = Object.values(users)
+        .sort((a, b) =>
+            b.totalScore - a.totalScore ||
+            a.totalTime - b.totalTime ||
+            a.attempts - b.attempts
+        )
+        .map((u, i) => ({
+            rank: i + 1,
+            name: u.name,
+            score: u.totalScore,
+            time: u.totalTime
+        }));
+
+    res.json(leaderboard);
+});
+
+// ================= START =================
+app.listen(PORT, () => {
+    console.log("Server running on port " + PORT);
+});
