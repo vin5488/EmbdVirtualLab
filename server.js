@@ -1299,47 +1299,52 @@ app.get('/api/hackathon/submissions', requireAdmin, (req, res) => {
 // ================= ADMIN GRADE =================
 app.post('/api/hackathon/grade', requireAdmin, (req, res) => {
     try {
-        const { submissionId, manualScores, comments, compositeScore, trainerName } = req.body;
+        const { submissionId, rubricScores, totalScore, comments, trainerName } = req.body;
 
-        const sub = db.prepare(`
-            SELECT autoScore FROM hackathon_submissions WHERE id=?
-        `).get(submissionId);
-
+        const sub = db.prepare(`SELECT autoScore, attempts, solveTime FROM hackathon_submissions WHERE id=?`).get(submissionId);
         if (!sub) return res.status(404).json({ error: 'Submission not found.' });
 
-        // Use compositeScore from frontend if provided (it applies the full rubric including time bonus,
-        // attempt penalty, etc. which the frontend calculates). Fall back to a simple calculation.
-        let finalScore = compositeScore;
-        if (finalScore == null) {
-            const quality = (manualScores?.codeQuality || 0);
-            const approach = (manualScores?.approach || 0);
-            const manualScore = Math.round((quality + approach) / 2 * 10);
-            finalScore = Math.round(sub.autoScore * 0.5 + manualScore * 0.5);
-        }
-        finalScore = Math.max(0, Math.min(100, Math.round(finalScore)));
+        // Validate & clamp each criterion against its max
+        const CRITERIA = [
+            { id: 'correctness',           max: 30 },
+            { id: 'code_quality',          max: 20 },
+            { id: 'problem_understanding', max: 15 },
+            { id: 'innovation',            max: 15 },
+            { id: 'documentation',         max: 10 },
+            { id: 'testing',               max: 10 },
+        ];
+        const validatedScores = {};
+        let computedTotal = 0;
+        CRITERIA.forEach(c => {
+            const raw = parseFloat((rubricScores || {})[c.id]);
+            const clamped = isNaN(raw) ? 0 : Math.max(0, Math.min(c.max, raw));
+            validatedScores[c.id] = clamped;
+            computedTotal += clamped;
+        });
+
+        // Use frontend-computed total if provided (already validated there too), else use sum
+        const finalScore = Math.max(0, Math.min(100, Math.round(
+            typeof totalScore === 'number' ? totalScore : computedTotal
+        )));
 
         const grade = {
-            manualScores,
+            rubricScores: validatedScores,
+            totalScore: finalScore,
             autoScore: sub.autoScore,
-            compositeScore: finalScore,
             comments: comments || '',
             trainerName: trainerName || req.user?.name || 'Trainer',
             gradedAt: new Date().toISOString()
         };
 
-        db.prepare(`
-            UPDATE hackathon_submissions
-            SET hackathonGrade=?
-            WHERE id=?
-        `).run(JSON.stringify(grade), submissionId);
+        db.prepare(`UPDATE hackathon_submissions SET hackathonGrade=? WHERE id=?`)
+            .run(JSON.stringify(grade), submissionId);
 
-        res.json({ success: true });
+        res.json({ success: true, grade });
 
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
-
 
 // ================= LEADERBOARD (FIXED) =================
 app.get('/api/hackathon/leaderboard', (req, res) => {
@@ -1355,7 +1360,7 @@ app.get('/api/hackathon/leaderboard', (req, res) => {
                 ? JSON.parse(r.hackathonGrade)
                 : null;
 
-            const score = grade?.compositeScore || r.autoScore;
+            const score = grade?.totalScore ?? grade?.compositeScore ?? r.autoScore;
 
             if (!users[r.email]) {
                 users[r.email] = {
