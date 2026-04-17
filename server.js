@@ -1148,6 +1148,8 @@ app.post('/api/hackathon/start', requireAdmin, (req, res) => {
         const startTime = new Date().toISOString();
         const endTime = new Date(Date.now() + duration * 60000).toISOString();
 
+        const problemsJson = JSON.stringify(problems || []);
+
         db.prepare(`
             INSERT INTO hackathon_sessions
             (id, title, topicId, duration, status, problems, startTime, endTime)
@@ -1158,13 +1160,41 @@ app.post('/api/hackathon/start', requireAdmin, (req, res) => {
             topicId,
             duration,
             'active',
-            JSON.stringify(problems || []),
+            problemsJson,
             startTime,
             endTime
         );
 
-        res.json({ success: true, sessionId: id });
+        const session = {
+            id,
+            title,
+            topicId,
+            duration,
+            status: 'active',
+            problems: problems || [],
+            startTime,
+            endTime
+        };
 
+        res.json({ success: true, sessionId: id, session });
+
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
+// ================= END SESSION =================
+app.post('/api/hackathon/end', requireAdmin, (req, res) => {
+    try {
+        const { sessionId } = req.body;
+        if (!sessionId) return res.status(400).json({ error: 'sessionId required.' });
+
+        const row = db.prepare(`SELECT id FROM hackathon_sessions WHERE id = ?`).get(sessionId);
+        if (!row) return res.status(404).json({ error: 'Session not found.' });
+
+        db.prepare(`UPDATE hackathon_sessions SET status = 'ended' WHERE id = ?`).run(sessionId);
+        res.json({ success: true });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -1269,27 +1299,31 @@ app.get('/api/hackathon/submissions', requireAdmin, (req, res) => {
 // ================= ADMIN GRADE =================
 app.post('/api/hackathon/grade', requireAdmin, (req, res) => {
     try {
-        const { submissionId, manualScores } = req.body;
+        const { submissionId, manualScores, comments, compositeScore, trainerName } = req.body;
 
         const sub = db.prepare(`
             SELECT autoScore FROM hackathon_submissions WHERE id=?
         `).get(submissionId);
 
-        const correctness = manualScores.correctness || 0;
-        const quality = manualScores.codeQuality || 0;
-        const logic = manualScores.logic || 0;
+        if (!sub) return res.status(404).json({ error: 'Submission not found.' });
 
-        const manualScore = Math.round((correctness + quality + logic) / 3 * 10);
-
-        const finalScore = Math.round(
-            sub.autoScore * 0.5 + manualScore * 0.5
-        );
+        // Use compositeScore from frontend if provided (it applies the full rubric including time bonus,
+        // attempt penalty, etc. which the frontend calculates). Fall back to a simple calculation.
+        let finalScore = compositeScore;
+        if (finalScore == null) {
+            const quality = (manualScores?.codeQuality || 0);
+            const approach = (manualScores?.approach || 0);
+            const manualScore = Math.round((quality + approach) / 2 * 10);
+            finalScore = Math.round(sub.autoScore * 0.5 + manualScore * 0.5);
+        }
+        finalScore = Math.max(0, Math.min(100, Math.round(finalScore)));
 
         const grade = {
             manualScores,
-            manualScore,
             autoScore: sub.autoScore,
             compositeScore: finalScore,
+            comments: comments || '',
+            trainerName: trainerName || req.user?.name || 'Trainer',
             gradedAt: new Date().toISOString()
         };
 

@@ -2983,7 +2983,7 @@ async evaluateSubmission(sub) {
                 allSubmissions: [],
                 // ── Hackathon State ──
                 hackathonSession: null,
-                hackathonConfig: { title: 'Visteon Hackathon 2025', duration: 120, topicId: 'VISTEON_C_BASIC', problemCount: 5 },
+                hackathonConfig: { title: 'Visteon Hackathon 2025', duration: 120, topicId: 'VISTEON_C', problemCount: 5 },
                 hackathonActiveProblem: null,
                 hackathonCode: '',
                 hackathonBuildReport: null,
@@ -3106,8 +3106,8 @@ async evaluateSubmission(sub) {
                                     }
 
                                     this._loadServerProgress();
-                                    if (data.user.role === "admin") { this.loadAllSubmissions(); this.loadCandidates(); }
-                                    if (data.user.role === "candidate") { this._restoreViolations(data.user.email); }
+                                    if (data.user.role === "admin") { this.loadAllSubmissions(); this.loadCandidates(); this.loadHackathonSubmissions(); }
+                                    if (data.user.role === "candidate") { this._restoreViolations(data.user.email); this.loadHackathonSession(); }
                                 } else {
                                     this.logout();
                                 }
@@ -5171,8 +5171,28 @@ async evaluateSubmission(sub) {
                             this.hackathonSession = data;
                             this.hackathonTotal = data.problems ? data.problems.length : 0;
                             if (data.status === 'active') this.startHackathonTimers(data);
+                        } else {
+                            this.hackathonSession = null;
                         }
                     } catch(e) { this.hackathonSession = null; }
+
+                    // Poll every 15 seconds so candidates see a hackathon go live without refresh
+                    if (!this._hackathonPollInterval) {
+                        this._hackathonPollInterval = setInterval(async () => {
+                            if (this.hackathonSession && this.hackathonSession.status === 'active') return; // stop polling once active
+                            try {
+                                const r = await fetch('/api/hackathon/session', { headers: this._authHeaders() });
+                                const d = await r.json();
+                                if (d && d.id && d.status === 'active' && (!this.hackathonSession || this.hackathonSession.status !== 'active')) {
+                                    this.hackathonSession = d;
+                                    this.hackathonTotal = d.problems ? d.problems.length : 0;
+                                    this.startHackathonTimers(d);
+                                    this.successToast = '⚡ Hackathon is now live! Good luck!';
+                                    setTimeout(() => { this.successToast = ''; }, 5000);
+                                }
+                            } catch(e) {}
+                        }, 15000);
+                    }
                 },
 
                 startHackathonTimers(session) {
@@ -5287,16 +5307,19 @@ async evaluateSubmission(sub) {
                             })
                         });
                         const result = await res.json();
-                        if (result.success) {
+                        if (result.success && result.session) {
                             this.hackathonSession = result.session;
-                            this.hackathonTotal = result.session.problems.length;
+                            this.hackathonTotal = result.session.problems ? result.session.problems.length : 0;
                             this.startHackathonTimers(result.session);
-                            this.successToast = '🚀 Hackathon launched! ' + result.session.problems.length + ' problems activated.';
+                            this.loadHackathonSubmissions();
+                            this.successToast = '🚀 Hackathon launched! ' + this.hackathonTotal + ' problems activated.';
                             setTimeout(() => { this.successToast = ''; }, 4000);
+                        } else {
+                            throw new Error(result.error || 'Unknown error');
                         }
                     } catch(e) {
-                        this.successToast = '❌ Failed to start hackathon.';
-                        setTimeout(() => { this.successToast = ''; }, 3000);
+                        this.successToast = '❌ Failed to start hackathon: ' + e.message;
+                        setTimeout(() => { this.successToast = ''; }, 4000);
                     }
                 },
 
