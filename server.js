@@ -573,8 +573,7 @@ app.get('/api/users', requireAdmin, (req, res) => {
     const users = db.prepare(`
         SELECT u.id, u.name, u.email, u.role, u.created_at,
                COUNT(DISTINCT s.id) as submission_count,
-               COUNT(DISTINCT CASE WHEN p.solved = 1 AND p.project_id LIKE 'VCA-%' THEN p.project_id END) as solved_count,
-               COUNT(DISTINCT CASE WHEN p.solved = 1 THEN p.project_id END) as solved_count_all
+               COUNT(DISTINCT CASE WHEN p.solved = 1 THEN p.project_id END) as solved_count
         FROM users u
         LEFT JOIN submissions s ON s.email = u.email
         LEFT JOIN progress p ON p.email = u.email
@@ -640,7 +639,7 @@ app.get('/api/progress', requireAuth, (req, res) => {
 app.get('/api/leaderboard', (req, res) => {
     const leaders = db.prepare(`
         SELECT u.name, u.email,
-               COUNT(DISTINCT CASE WHEN p.solved = 1 AND p.project_id LIKE 'VCA-%' THEN p.project_id END) as solved_count,
+               COUNT(DISTINCT CASE WHEN p.solved = 1 THEN p.project_id END) as solved_count,
                COUNT(DISTINCT s.id) as submission_count
         FROM users u
         LEFT JOIN progress p ON p.email = u.email
@@ -1418,18 +1417,9 @@ app.get('/api/hackathon/leaderboard', (req, res) => {
 // ══════════════════════════════════════════════════════
 
 async function buildWeeklyReportHTML(weekLabel) {
-    // Count how many distinct VISTEON_C projects exist in progress (ever attempted),
-    // so the denominator reflects the real assignment set rather than a hardcoded 20.
-    const visteonTotal = (() => {
-        try {
-            const r = db.prepare(`SELECT COUNT(DISTINCT project_id) as cnt FROM progress WHERE project_id LIKE 'VCA-%'`).get();
-            return Math.max(r?.cnt || 20, 20); // at least 20 (the published assignment count)
-        } catch { return 20; }
-    })();
-
     const rows = db.prepare(`
         SELECT u.name, u.email,
-               COUNT(DISTINCT CASE WHEN p.solved = 1 AND p.project_id LIKE 'VCA-%' THEN p.project_id END) as solved_count,
+               COUNT(DISTINCT CASE WHEN p.solved = 1 THEN p.project_id END) as solved_count,
                COUNT(DISTINCT s.id) as submission_count,
                ROUND(AVG(CASE WHEN s.auto_score IS NOT NULL THEN s.auto_score END), 1) as avg_score,
                SUM(COALESCE(s.violation_count, 0)) as total_violations
@@ -1448,7 +1438,7 @@ async function buildWeeklyReportHTML(weekLabel) {
             <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-weight:600;color:#374151">${i + 1}</td>
             <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb">${r.name || '—'}</td>
             <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;color:#6b7280">${r.email}</td>
-            <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;color:#2563eb">${r.solved_count || 0} / ${visteonTotal}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;color:#2563eb">${r.solved_count || 0} / 20</td>
             <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;text-align:center">${r.submission_count || 0}</td>
             <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;color:${(r.avg_score || 0) >= 70 ? '#16a34a' : '#dc2626'}">${r.avg_score || '—'}%</td>
             <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;text-align:center;color:${(r.total_violations || 0) > 5 ? '#dc2626' : '#374151'}">${r.total_violations || 0}</td>
@@ -1546,4 +1536,98 @@ app.post('/api/admin/send-weekly-report', requireAdmin, async (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`[Worker ${WORKER_ID}, PID ${process.pid}] Express app listening on port ${PORT}`);
+});
+// ══════════════════════════════════════════════════════
+// AUTOGRADE + REPORT — bulk-grade all pending submissions
+// then immediately send the progress report email.
+// Streams newline-delimited JSON so the UI shows a live log.
+// ══════════════════════════════════════════════════════
+app.post('/api/admin/autograde-and-report', requireAdmin, async (req, res) => {
+    res.setHeader('Content-Type', 'application/x-ndjson');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('X-Accel-Buffering', 'no');
+
+    const send = (obj) => { try { res.write(JSON.stringify(obj) + '\n'); } catch(e) {} };
+
+    try {
+        // 1. Fetch all pending submissions
+        const pending = db.prepare(`
+            SELECT id, candidate_name, email, project_title, auto_score
+            FROM submissions WHERE status = 'pending'
+            ORDER BY submitted_at ASC
+        `).all();
+
+        send({ type: 'start', total: pending.length,
+               message: `Found ${pending.length} pending submission(s) to autograde` });
+
+        // 2. Autograde each one using auto_score only
+        let graded = 0, skipped = 0;
+        const gradeStmt = db.prepare(`UPDATE submissions SET status = 'graded', grade = ? WHERE id = ?`);
+
+        for (const sub of pending) {
+            try {
+                const autoScore = sub.auto_score || 0;
+                const scaled = Math.round((autoScore / 100) * 10);
+                const grade = {
+                    scores: {
+                        correctness: scaled,
+                        codeQuality: Math.round(scaled * 0.8),
+                        logic:       scaled,
+                        style:       Math.round(scaled * 0.7)
+                    },
+                    manualScore:    Math.round(((scaled + Math.round(scaled * 0.8) + scaled + Math.round(scaled * 0.7)) / 4) * 10),
+                    autoScore,
+                    compositeScore: autoScore,
+                    comments:       'Auto-graded based on test results.',
+                    trainerName:    req.user?.name || 'Auto-Grader',
+                    gradedAt:       new Date().toISOString(),
+                    isAutoGrade:    true
+                };
+                gradeStmt.run(JSON.stringify(grade), sub.id);
+                graded++;
+                send({ type: 'graded', id: sub.id, name: sub.candidate_name,
+                       email: sub.email, problem: sub.project_title,
+                       autoScore, compositeScore: autoScore,
+                       message: `✓ ${sub.candidate_name} — ${sub.project_title} → ${autoScore}%` });
+            } catch (e) {
+                skipped++;
+                send({ type: 'error', id: sub.id, message: `✗ Failed: ${sub.candidate_name} — ${e.message}` });
+            }
+        }
+
+        send({ type: 'gradeComplete', graded, skipped,
+               message: `Autograde complete: ${graded} graded, ${skipped} failed` });
+
+        // 3. Build and send report
+        send({ type: 'reportStart', message: 'Building progress report…' });
+
+        const weekLabel = req.body?.weekLabel || `Week ending ${new Date().toISOString().slice(0, 10)}`;
+        const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
+
+        if (!adminEmails.length) {
+            send({ type: 'reportSkipped', message: 'No ADMIN_EMAILS configured — report not sent (but grades are saved)' });
+        } else {
+            try {
+                const html = await buildWeeklyReportHTML(weekLabel);
+                await transporter.sendMail({
+                    from:    process.env.SMTP_FROM || '"VirtualLab" <noreply@virtuallab.io>',
+                    to:      adminEmails.join(','),
+                    subject: `📊 VirtualLab Progress Report (Auto-graded) — ${weekLabel}`,
+                    html
+                });
+                send({ type: 'reportSent', sentTo: adminEmails,
+                       message: `📧 Report sent to: ${adminEmails.join(', ')}` });
+                console.log(`[AutogradeReport] Sent to ${adminEmails.join(', ')} by ${req.user?.email}`);
+            } catch (err) {
+                send({ type: 'reportError', message: `Report email failed: ${err.message}` });
+            }
+        }
+
+        send({ type: 'done', graded, skipped, weekLabel });
+
+    } catch (e) {
+        send({ type: 'fatalError', message: e.message });
+    }
+
+    res.end();
 });

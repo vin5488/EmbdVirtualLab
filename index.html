@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -591,7 +591,18 @@
                 </div>
             </div>
 
+            
+<div x-show="currentView === 'hackathon_arena' && hackathonEnabled" class="h-full overflow-y-auto p-10 bg-slate-950">
+<h2 class="text-3xl font-black text-purple-400 mb-6">⚡ Hackathon Arena</h2>
 
+<div class="bg-slate-900 p-6 rounded-xl mb-4">
+<h3 x-text="hackathonProblem.title" class="text-white font-bold"></h3>
+<p x-text="hackathonProblem.description" class="text-slate-400"></p>
+</div>
+
+<textarea x-model="hackathonCode" class="w-full h-40 bg-black text-white"></textarea>
+<button @click="submitHackathonCode()" class="bg-green-600 p-2 mt-2">Submit</button>
+</div>
 
 <!-- Workspace View -->
             <div x-show="currentView === 'workspace'" class="h-full flex overflow-hidden">
@@ -1390,6 +1401,12 @@
                                     class="w-full bg-violet-600/10 hover:bg-violet-600/20 text-violet-400 border border-violet-600/30 p-4 rounded-2xl text-xs font-bold transition-all flex items-center justify-between disabled:opacity-50">
                                     <span x-text="weeklyReportSending ? 'Sending...' : 'Send Weekly Report'"></span>
                                     <i class="fas" :class="weeklyReportSending ? 'fa-circle-notch fa-spin' : 'fa-envelope'"></i>
+                                </button>
+                                <button @click="runAutogradeAndReport()"
+                                    :disabled="autogradeRunning"
+                                    class="w-full bg-gradient-to-r from-amber-600/15 to-orange-600/15 hover:from-amber-600/25 hover:to-orange-600/25 text-amber-400 border border-amber-600/40 p-4 rounded-2xl text-xs font-bold transition-all flex items-center justify-between disabled:opacity-50">
+                                    <span x-text="autogradeRunning ? 'Autograding…' : 'Autograde + Send Report'"></span>
+                                    <i class="fas" :class="autogradeRunning ? 'fa-circle-notch fa-spin' : 'fa-robot'"></i>
                                 </button>
                                 <button @click="loadAllSubmissions()"
                                     class="w-full bg-slate-800 hover:bg-slate-700 text-slate-400 border border-slate-700 p-4 rounded-2xl text-xs font-bold transition-all flex items-center justify-between">
@@ -2481,6 +2498,104 @@
         </div>
 
 
+
+
+    <!-- ══════════════════════════════════════════════════════ -->
+    <!-- Autograde + Report — live progress modal              -->
+    <!-- ══════════════════════════════════════════════════════ -->
+    <div x-show="autogradeModalOpen" x-cloak x-transition
+        class="fixed inset-0 z-[500] bg-slate-950/95 backdrop-blur-md flex items-center justify-center p-6">
+        <div class="bg-slate-900 border border-slate-700 rounded-3xl shadow-2xl w-full max-w-2xl flex flex-col" style="max-height:85vh">
+            <!-- Header -->
+            <div class="flex items-center justify-between px-8 py-5 border-b border-slate-800 shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-9 h-9 rounded-xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
+                        <i class="fas fa-robot text-amber-400 text-sm"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-base font-black text-white">Autograde &amp; Send Report</h2>
+                        <p class="text-[10px] text-slate-500 mt-0.5">Grades all pending submissions, then emails the progress report</p>
+                    </div>
+                </div>
+                <button @click="autogradeModalOpen = false" :disabled="autogradeRunning"
+                    class="text-slate-500 hover:text-white disabled:opacity-30 transition-colors text-sm">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <!-- Summary bar — shown once done -->
+            <div x-show="autogradeResult" class="px-8 py-4 border-b border-slate-800 shrink-0">
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="bg-emerald-500/10 border border-emerald-500/25 rounded-xl p-3 text-center">
+                        <div class="text-2xl font-black text-emerald-400" x-text="autogradeResult?.graded ?? '—'"></div>
+                        <div class="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">Graded</div>
+                    </div>
+                    <div class="bg-red-500/10 border border-red-500/25 rounded-xl p-3 text-center">
+                        <div class="text-2xl font-black text-red-400" x-text="autogradeResult?.skipped ?? '—'"></div>
+                        <div class="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5">Failed</div>
+                    </div>
+                    <div class="rounded-xl p-3 text-center border"
+                        :class="autogradeResult?.reportSent ? 'bg-blue-500/10 border-blue-500/25' : 'bg-slate-800 border-slate-700'">
+                        <div class="text-2xl font-black" :class="autogradeResult?.reportSent ? 'text-blue-400' : 'text-slate-500'">
+                            <i class="fas" :class="autogradeResult?.reportSent ? 'fa-check' : 'fa-times'"></i>
+                        </div>
+                        <div class="text-[10px] text-slate-500 uppercase tracking-widest mt-0.5"
+                            x-text="autogradeResult?.reportSent ? 'Report Sent' : 'Report Skipped'"></div>
+                    </div>
+                </div>
+            </div>
+            <!-- Live log -->
+            <div class="flex-1 overflow-y-auto custom-scrollbar px-8 py-5 space-y-1.5" id="autogradeLogScroll">
+                <div x-show="!autogradeRunning && autogradeLog.length === 0" class="flex flex-col items-center justify-center py-16 text-center">
+                    <div class="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center mb-4">
+                        <i class="fas fa-robot text-amber-400 text-2xl"></i>
+                    </div>
+                    <p class="text-white font-bold mb-1">Ready to autograde</p>
+                    <p class="text-slate-500 text-xs max-w-xs">Grades all <span class="text-amber-400 font-bold" x-text="allSubmissions.filter(s=>s.status==='pending').length"></span> pending submission(s) using their auto-test scores, then emails the progress report to all admins.</p>
+                </div>
+                <template x-for="(entry, i) in autogradeLog" :key="i">
+                    <div class="flex items-start gap-2.5 text-xs font-mono"
+                        :class="{
+                            'text-emerald-400': entry.type === 'graded',
+                            'text-red-400':     entry.type === 'error' || entry.type === 'fatalError' || entry.type === 'reportError',
+                            'text-blue-400':    entry.type === 'reportSent',
+                            'text-amber-400':   entry.type === 'start' || entry.type === 'gradeComplete',
+                            'text-cyan-400':    entry.type === 'reportStart' || entry.type === 'done',
+                            'text-slate-400':   entry.type === 'info' || entry.type === 'reportSkipped'
+                        }">
+                        <span class="shrink-0 w-4 mt-0.5">
+                            <i class="fas"
+                                :class="{
+                                    'fa-check':          entry.type === 'graded' || entry.type === 'reportSent' || entry.type === 'done',
+                                    'fa-times':          entry.type === 'error' || entry.type === 'fatalError' || entry.type === 'reportError',
+                                    'fa-bolt':           entry.type === 'start',
+                                    'fa-flag-checkered': entry.type === 'gradeComplete',
+                                    'fa-paper-plane':    entry.type === 'reportStart',
+                                    'fa-info-circle':    entry.type === 'info' || entry.type === 'reportSkipped'
+                                }"></i>
+                        </span>
+                        <span x-text="entry.message" class="leading-relaxed"></span>
+                    </div>
+                </template>
+                <div x-show="autogradeRunning" class="flex items-center gap-2 text-xs text-slate-500 font-mono pt-1">
+                    <i class="fas fa-circle-notch fa-spin text-amber-400"></i>
+                    <span>Processing…</span>
+                </div>
+            </div>
+            <!-- Footer -->
+            <div class="px-8 py-5 border-t border-slate-800 flex gap-3 shrink-0">
+                <button @click="runAutogradeAndReport()" :disabled="autogradeRunning"
+                    class="flex-1 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                    <i class="fas" :class="autogradeRunning ? 'fa-circle-notch fa-spin' : 'fa-play'"></i>
+                    <span x-text="autogradeResult ? 'Run Again' : 'Start Autograde'"></span>
+                </button>
+                <button @click="autogradeModalOpen = false; loadAllSubmissions()" :disabled="autogradeRunning"
+                    class="bg-slate-800 hover:bg-slate-700 disabled:opacity-40 text-slate-300 px-6 py-3 rounded-xl font-bold text-sm transition-all">
+                    <span x-text="autogradeResult ? 'Close &amp; Refresh' : 'Cancel'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- ══════════════════════════════════════════════════════ -->
     <!-- DB Diagnostics Modal -->
         <!-- DB Diagnostics Modal -->
@@ -2886,7 +3001,50 @@
 
             return {
 
+// ===== HACKATHON FULL MODULE =====
+hackathonEnabled: false,
+hackathonProblem: {},
+hackathonCode: "",
+myHackathonSubmissions: [],
+allHackathonSubmissions: [],
 
+initHackathonForUser() {
+    if (this.user && this.user.role === 'candidate' && window.isVisteonUser(this.user.email)) {
+        this.hackathonEnabled = true;
+        this.hackathonProblem = {
+            id: 1,
+            title: "CAN Message Parser",
+            description: "Parse CAN frame and extract signals efficiently"
+        };
+    }
+},
+
+async submitHackathonCode() {
+    if (!this.hackathonCode) {
+        alert("Write code first");
+        return;
+    }
+    await fetch('/api/hackathon/submit', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+        body: JSON.stringify({problemId:this.hackathonProblem.id,code:this.hackathonCode})
+    });
+    alert("Submitted");
+},
+
+async loadAllSubmissions() {
+    const res = await fetch('/api/hackathon/all-submissions');
+    this.allHackathonSubmissions = await res.json();
+},
+
+async evaluateSubmission(sub) {
+    await fetch('/api/hackathon/evaluate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(sub)
+    });
+    alert("Evaluated");
+},
 
                 isLoggedIn: false, // Enforce login screen
                 authLoading: false, // Auth API in-progress flag
@@ -2923,6 +3081,10 @@
                 showDbDiag: false,
                 cleanupLoading: false,
                 weeklyReportSending: false,
+                autogradeRunning: false,
+                autogradeLog: [],
+                autogradeResult: null,
+                autogradeModalOpen: false,
                 submitDay: 1,
                 isSubmitting: false,
                 mySubmissions: [],
@@ -4152,6 +4314,78 @@
                     }
                 },
 
+                // Autograde all pending submissions then email the progress report
+                async runAutogradeAndReport() {
+                    if (this.autogradeRunning) return;
+                    this.autogradeRunning = true;
+                    this.autogradeLog = [];
+                    this.autogradeResult = null;
+                    this.autogradeModalOpen = true;
+
+                    const weekLabel = `Week ending ${new Date().toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}`;
+
+                    try {
+                        const res = await fetch('/api/admin/autograde-and-report', {
+                            method: 'POST',
+                            headers: this._authHeaders(),
+                            body: JSON.stringify({ weekLabel })
+                        });
+
+                        // Read the NDJSON stream line by line
+                        const reader = res.body.getReader();
+                        const decoder = new TextDecoder();
+                        let buffer = '';
+
+                        while (true) {
+                            const { done, value } = await reader.read();
+                            if (done) break;
+                            buffer += decoder.decode(value, { stream: true });
+                            const lines = buffer.split('\n');
+                            buffer = lines.pop(); // keep incomplete last line
+                            for (const line of lines) {
+                                if (!line.trim()) continue;
+                                try {
+                                    const event = JSON.parse(line);
+                                    this.autogradeLog.push(event);
+
+                                    // Capture final summary
+                                    if (event.type === 'done') {
+                                        this.autogradeResult = {
+                                            graded:     event.graded,
+                                            skipped:    event.skipped,
+                                            reportSent: false,
+                                            weekLabel:  event.weekLabel
+                                        };
+                                    }
+                                    if (event.type === 'reportSent') {
+                                        if (this.autogradeResult) this.autogradeResult.reportSent = true;
+                                    }
+
+                                    // Auto-scroll log to bottom
+                                    this.$nextTick(() => {
+                                        const el = document.getElementById('autogradeLogScroll');
+                                        if (el) el.scrollTop = el.scrollHeight;
+                                    });
+                                } catch { /* malformed line — skip */ }
+                            }
+                        }
+
+                        // Final toast
+                        const r = this.autogradeResult;
+                        if (r) {
+                            this.successToast = r.reportSent
+                                ? `✅ ${r.graded} graded · Report emailed`
+                                : `✅ ${r.graded} graded · Report skipped (no ADMIN_EMAILS)`;
+                            setTimeout(() => { this.successToast = ''; }, 6000);
+                        }
+
+                    } catch (e) {
+                        this.autogradeLog.push({ type: 'fatalError', message: 'Network error: ' + e.message });
+                    }
+
+                    this.autogradeRunning = false;
+                },
+
                 // Manual weekly report trigger for admins
                 async sendWeeklyReport() {
                     if (this.weeklyReportSending) return;
@@ -4234,7 +4468,50 @@
                     }).map(p => {
                         return {
 
+// ===== HACKATHON FULL MODULE =====
+hackathonEnabled: false,
+hackathonProblem: {},
+hackathonCode: "",
+myHackathonSubmissions: [],
+allHackathonSubmissions: [],
 
+initHackathonForUser() {
+    if (this.user && this.user.role === 'candidate' && window.isVisteonUser(this.user.email)) {
+        this.hackathonEnabled = true;
+        this.hackathonProblem = {
+            id: 1,
+            title: "CAN Message Parser",
+            description: "Parse CAN frame and extract signals efficiently"
+        };
+    }
+},
+
+async submitHackathonCode() {
+    if (!this.hackathonCode) {
+        alert("Write code first");
+        return;
+    }
+    await fetch('/api/hackathon/submit', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+        body: JSON.stringify({problemId:this.hackathonProblem.id,code:this.hackathonCode})
+    });
+    alert("Submitted");
+},
+
+async loadAllSubmissions() {
+    const res = await fetch('/api/hackathon/all-submissions');
+    this.allHackathonSubmissions = await res.json();
+},
+
+async evaluateSubmission(sub) {
+    await fetch('/api/hackathon/evaluate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(sub)
+    });
+    alert("Evaluated");
+},
  ...p, solved: this.solvedProjectIds.includes(p.id) };
                     });
                 },
@@ -4310,17 +4587,8 @@
                     });
                 },
 
-                // Only count solved problems that belong to the projects this user is allowed to see.
-                // Without this filter, IDs from other topics (e.g. general C problems solved in a
-                // previous session) inflate the Visteon completion count on the dashboard.
-                get solvedCount() {
-                    const allowedIds = new Set(this.allowedProjects.map(p => p.id));
-                    return this.solvedProjectIds.filter(id => allowedIds.has(id)).length;
-                },
-                get totalProgress() {
-                    const total = this.allowedProjects.length || this.projects.length;
-                    return Math.round((this.solvedCount / total) * 100) || 0;
-                },
+                get solvedCount() { return this.solvedProjectIds.length; },
+                get totalProgress() { return Math.round((this.solvedCount / (this.selectedTopic?.id === 'VISTEON_C' ? 20 : (this.allowedProjects.length || this.projects.length))) * 100) || 0; },
                 get totalPointsEarned() {
                     return this.projects.filter(p => this.solvedProjectIds.includes(p.id))
                         .reduce((sum, p) => sum + p.points, 0);
@@ -4488,7 +4756,50 @@
                         } catch (e) {
                             return {
 
+// ===== HACKATHON FULL MODULE =====
+hackathonEnabled: false,
+hackathonProblem: {},
+hackathonCode: "",
+myHackathonSubmissions: [],
+allHackathonSubmissions: [],
 
+initHackathonForUser() {
+    if (this.user && this.user.role === 'candidate' && window.isVisteonUser(this.user.email)) {
+        this.hackathonEnabled = true;
+        this.hackathonProblem = {
+            id: 1,
+            title: "CAN Message Parser",
+            description: "Parse CAN frame and extract signals efficiently"
+        };
+    }
+},
+
+async submitHackathonCode() {
+    if (!this.hackathonCode) {
+        alert("Write code first");
+        return;
+    }
+    await fetch('/api/hackathon/submit', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+        body: JSON.stringify({problemId:this.hackathonProblem.id,code:this.hackathonCode})
+    });
+    alert("Submitted");
+},
+
+async loadAllSubmissions() {
+    const res = await fetch('/api/hackathon/all-submissions');
+    this.allHackathonSubmissions = await res.json();
+},
+
+async evaluateSubmission(sub) {
+    await fetch('/api/hackathon/evaluate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(sub)
+    });
+    alert("Evaluated");
+},
  error: e.message };
                         }
                     };
@@ -4697,7 +5008,50 @@
                         // We treat anything other than 3 as an error/issue
                         return {
 
+// ===== HACKATHON FULL MODULE =====
+hackathonEnabled: false,
+hackathonProblem: {},
+hackathonCode: "",
+myHackathonSubmissions: [],
+allHackathonSubmissions: [],
 
+initHackathonForUser() {
+    if (this.user && this.user.role === 'candidate' && window.isVisteonUser(this.user.email)) {
+        this.hackathonEnabled = true;
+        this.hackathonProblem = {
+            id: 1,
+            title: "CAN Message Parser",
+            description: "Parse CAN frame and extract signals efficiently"
+        };
+    }
+},
+
+async submitHackathonCode() {
+    if (!this.hackathonCode) {
+        alert("Write code first");
+        return;
+    }
+    await fetch('/api/hackathon/submit', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+        body: JSON.stringify({problemId:this.hackathonProblem.id,code:this.hackathonCode})
+    });
+    alert("Submitted");
+},
+
+async loadAllSubmissions() {
+    const res = await fetch('/api/hackathon/all-submissions');
+    this.allHackathonSubmissions = await res.json();
+},
+
+async evaluateSubmission(sub) {
+    await fetch('/api/hackathon/evaluate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(sub)
+    });
+    alert("Evaluated");
+},
 
                             error: result.status.id > 3,
                             stdout: result.stdout ? atob(result.stdout) : "",
@@ -4726,7 +5080,50 @@
                     } catch (e) {
                         return {
 
+// ===== HACKATHON FULL MODULE =====
+hackathonEnabled: false,
+hackathonProblem: {},
+hackathonCode: "",
+myHackathonSubmissions: [],
+allHackathonSubmissions: [],
 
+initHackathonForUser() {
+    if (this.user && this.user.role === 'candidate' && window.isVisteonUser(this.user.email)) {
+        this.hackathonEnabled = true;
+        this.hackathonProblem = {
+            id: 1,
+            title: "CAN Message Parser",
+            description: "Parse CAN frame and extract signals efficiently"
+        };
+    }
+},
+
+async submitHackathonCode() {
+    if (!this.hackathonCode) {
+        alert("Write code first");
+        return;
+    }
+    await fetch('/api/hackathon/submit', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+        body: JSON.stringify({problemId:this.hackathonProblem.id,code:this.hackathonCode})
+    });
+    alert("Submitted");
+},
+
+async loadAllSubmissions() {
+    const res = await fetch('/api/hackathon/all-submissions');
+    this.allHackathonSubmissions = await res.json();
+},
+
+async evaluateSubmission(sub) {
+    await fetch('/api/hackathon/evaluate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(sub)
+    });
+    alert("Evaluated");
+},
  error: true, compile_output: 'Failed to connect to integrated toolchain.' };
                     }
                 },
@@ -5400,7 +5797,50 @@
                         const passRate = totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0;
                         return {
 
+// ===== HACKATHON FULL MODULE =====
+hackathonEnabled: false,
+hackathonProblem: {},
+hackathonCode: "",
+myHackathonSubmissions: [],
+allHackathonSubmissions: [],
 
+initHackathonForUser() {
+    if (this.user && this.user.role === 'candidate' && window.isVisteonUser(this.user.email)) {
+        this.hackathonEnabled = true;
+        this.hackathonProblem = {
+            id: 1,
+            title: "CAN Message Parser",
+            description: "Parse CAN frame and extract signals efficiently"
+        };
+    }
+},
+
+async submitHackathonCode() {
+    if (!this.hackathonCode) {
+        alert("Write code first");
+        return;
+    }
+    await fetch('/api/hackathon/submit', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+        body: JSON.stringify({problemId:this.hackathonProblem.id,code:this.hackathonCode})
+    });
+    alert("Submitted");
+},
+
+async loadAllSubmissions() {
+    const res = await fetch('/api/hackathon/all-submissions');
+    this.allHackathonSubmissions = await res.json();
+},
+
+async evaluateSubmission(sub) {
+    await fetch('/api/hackathon/evaluate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(sub)
+    });
+    alert("Evaluated");
+},
  c, subs, totalTests, passedTests, avgScore, totalViolations, tabSwitches, copyPaste, passRate };
                     }).sort((a, b) => b.avgScore - a.avgScore);
 
@@ -5579,7 +6019,50 @@
                             const detail = await r.json();
                             return {
 
+// ===== HACKATHON FULL MODULE =====
+hackathonEnabled: false,
+hackathonProblem: {},
+hackathonCode: "",
+myHackathonSubmissions: [],
+allHackathonSubmissions: [],
 
+initHackathonForUser() {
+    if (this.user && this.user.role === 'candidate' && window.isVisteonUser(this.user.email)) {
+        this.hackathonEnabled = true;
+        this.hackathonProblem = {
+            id: 1,
+            title: "CAN Message Parser",
+            description: "Parse CAN frame and extract signals efficiently"
+        };
+    }
+},
+
+async submitHackathonCode() {
+    if (!this.hackathonCode) {
+        alert("Write code first");
+        return;
+    }
+    await fetch('/api/hackathon/submit', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+        body: JSON.stringify({problemId:this.hackathonProblem.id,code:this.hackathonCode})
+    });
+    alert("Submitted");
+},
+
+async loadAllSubmissions() {
+    const res = await fetch('/api/hackathon/all-submissions');
+    this.allHackathonSubmissions = await res.json();
+},
+
+async evaluateSubmission(sub) {
+    await fetch('/api/hackathon/evaluate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(sub)
+    });
+    alert("Evaluated");
+},
  ...s, violation_log: detail.violation_log, test_results: detail.test_results };
                         } catch { return s; }
                     }));
@@ -5597,7 +6080,50 @@
                             const detail = await r.json();
                             return {
 
+// ===== HACKATHON FULL MODULE =====
+hackathonEnabled: false,
+hackathonProblem: {},
+hackathonCode: "",
+myHackathonSubmissions: [],
+allHackathonSubmissions: [],
 
+initHackathonForUser() {
+    if (this.user && this.user.role === 'candidate' && window.isVisteonUser(this.user.email)) {
+        this.hackathonEnabled = true;
+        this.hackathonProblem = {
+            id: 1,
+            title: "CAN Message Parser",
+            description: "Parse CAN frame and extract signals efficiently"
+        };
+    }
+},
+
+async submitHackathonCode() {
+    if (!this.hackathonCode) {
+        alert("Write code first");
+        return;
+    }
+    await fetch('/api/hackathon/submit', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+        body: JSON.stringify({problemId:this.hackathonProblem.id,code:this.hackathonCode})
+    });
+    alert("Submitted");
+},
+
+async loadAllSubmissions() {
+    const res = await fetch('/api/hackathon/all-submissions');
+    this.allHackathonSubmissions = await res.json();
+},
+
+async evaluateSubmission(sub) {
+    await fetch('/api/hackathon/evaluate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(sub)
+    });
+    alert("Evaluated");
+},
  ...s, violation_log: detail.violation_log, test_results: detail.test_results };
                         } catch { return s; }
                     }));
@@ -5807,3 +6333,15 @@
 </body>
 
 </html>
+<div x-show="currentView === 'hackathon_control'" class="p-6">
+<h2 class="text-xl text-purple-400">Admin Evaluation</h2>
+
+<template x-for="sub in allHackathonSubmissions">
+<div class="bg-slate-900 p-4 mt-3">
+<pre x-text="sub.code"></pre>
+<input x-model="sub.score" placeholder="score">
+<input x-model="sub.feedback" placeholder="feedback">
+<button @click="evaluateSubmission(sub)">Evaluate</button>
+</div>
+</template>
+</div>
