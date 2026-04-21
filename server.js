@@ -573,7 +573,8 @@ app.get('/api/users', requireAdmin, (req, res) => {
     const users = db.prepare(`
         SELECT u.id, u.name, u.email, u.role, u.created_at,
                COUNT(DISTINCT s.id) as submission_count,
-               COUNT(DISTINCT CASE WHEN p.solved = 1 THEN p.project_id END) as solved_count
+               COUNT(DISTINCT CASE WHEN p.solved = 1 AND p.project_id LIKE 'VCA-%' THEN p.project_id END) as solved_count,
+               COUNT(DISTINCT CASE WHEN p.solved = 1 THEN p.project_id END) as solved_count_all
         FROM users u
         LEFT JOIN submissions s ON s.email = u.email
         LEFT JOIN progress p ON p.email = u.email
@@ -639,7 +640,7 @@ app.get('/api/progress', requireAuth, (req, res) => {
 app.get('/api/leaderboard', (req, res) => {
     const leaders = db.prepare(`
         SELECT u.name, u.email,
-               COUNT(DISTINCT CASE WHEN p.solved = 1 THEN p.project_id END) as solved_count,
+               COUNT(DISTINCT CASE WHEN p.solved = 1 AND p.project_id LIKE 'VCA-%' THEN p.project_id END) as solved_count,
                COUNT(DISTINCT s.id) as submission_count
         FROM users u
         LEFT JOIN progress p ON p.email = u.email
@@ -1299,52 +1300,47 @@ app.get('/api/hackathon/submissions', requireAdmin, (req, res) => {
 // ================= ADMIN GRADE =================
 app.post('/api/hackathon/grade', requireAdmin, (req, res) => {
     try {
-        const { submissionId, rubricScores, totalScore, comments, trainerName } = req.body;
+        const { submissionId, manualScores, comments, compositeScore, trainerName } = req.body;
 
-        const sub = db.prepare(`SELECT autoScore, attempts, solveTime FROM hackathon_submissions WHERE id=?`).get(submissionId);
+        const sub = db.prepare(`
+            SELECT autoScore FROM hackathon_submissions WHERE id=?
+        `).get(submissionId);
+
         if (!sub) return res.status(404).json({ error: 'Submission not found.' });
 
-        // Validate & clamp each criterion against its max
-        const CRITERIA = [
-            { id: 'correctness',           max: 30 },
-            { id: 'code_quality',          max: 20 },
-            { id: 'problem_understanding', max: 15 },
-            { id: 'innovation',            max: 15 },
-            { id: 'documentation',         max: 10 },
-            { id: 'testing',               max: 10 },
-        ];
-        const validatedScores = {};
-        let computedTotal = 0;
-        CRITERIA.forEach(c => {
-            const raw = parseFloat((rubricScores || {})[c.id]);
-            const clamped = isNaN(raw) ? 0 : Math.max(0, Math.min(c.max, raw));
-            validatedScores[c.id] = clamped;
-            computedTotal += clamped;
-        });
-
-        // Use frontend-computed total if provided (already validated there too), else use sum
-        const finalScore = Math.max(0, Math.min(100, Math.round(
-            typeof totalScore === 'number' ? totalScore : computedTotal
-        )));
+        // Use compositeScore from frontend if provided (it applies the full rubric including time bonus,
+        // attempt penalty, etc. which the frontend calculates). Fall back to a simple calculation.
+        let finalScore = compositeScore;
+        if (finalScore == null) {
+            const quality = (manualScores?.codeQuality || 0);
+            const approach = (manualScores?.approach || 0);
+            const manualScore = Math.round((quality + approach) / 2 * 10);
+            finalScore = Math.round(sub.autoScore * 0.5 + manualScore * 0.5);
+        }
+        finalScore = Math.max(0, Math.min(100, Math.round(finalScore)));
 
         const grade = {
-            rubricScores: validatedScores,
-            totalScore: finalScore,
+            manualScores,
             autoScore: sub.autoScore,
+            compositeScore: finalScore,
             comments: comments || '',
             trainerName: trainerName || req.user?.name || 'Trainer',
             gradedAt: new Date().toISOString()
         };
 
-        db.prepare(`UPDATE hackathon_submissions SET hackathonGrade=? WHERE id=?`)
-            .run(JSON.stringify(grade), submissionId);
+        db.prepare(`
+            UPDATE hackathon_submissions
+            SET hackathonGrade=?
+            WHERE id=?
+        `).run(JSON.stringify(grade), submissionId);
 
-        res.json({ success: true, grade });
+        res.json({ success: true });
 
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
 });
+
 
 // ================= LEADERBOARD (FIXED) =================
 app.get('/api/hackathon/leaderboard', (req, res) => {
@@ -1360,7 +1356,7 @@ app.get('/api/hackathon/leaderboard', (req, res) => {
                 ? JSON.parse(r.hackathonGrade)
                 : null;
 
-            const score = grade?.totalScore ?? grade?.compositeScore ?? r.autoScore;
+            const score = grade?.compositeScore || r.autoScore;
 
             if (!users[r.email]) {
                 users[r.email] = {
@@ -1422,9 +1418,18 @@ app.get('/api/hackathon/leaderboard', (req, res) => {
 // ══════════════════════════════════════════════════════
 
 async function buildWeeklyReportHTML(weekLabel) {
+    // Count how many distinct VISTEON_C projects exist in progress (ever attempted),
+    // so the denominator reflects the real assignment set rather than a hardcoded 20.
+    const visteonTotal = (() => {
+        try {
+            const r = db.prepare(`SELECT COUNT(DISTINCT project_id) as cnt FROM progress WHERE project_id LIKE 'VCA-%'`).get();
+            return Math.max(r?.cnt || 20, 20); // at least 20 (the published assignment count)
+        } catch { return 20; }
+    })();
+
     const rows = db.prepare(`
         SELECT u.name, u.email,
-               COUNT(DISTINCT CASE WHEN p.solved = 1 THEN p.project_id END) as solved_count,
+               COUNT(DISTINCT CASE WHEN p.solved = 1 AND p.project_id LIKE 'VCA-%' THEN p.project_id END) as solved_count,
                COUNT(DISTINCT s.id) as submission_count,
                ROUND(AVG(CASE WHEN s.auto_score IS NOT NULL THEN s.auto_score END), 1) as avg_score,
                SUM(COALESCE(s.violation_count, 0)) as total_violations
@@ -1443,7 +1448,7 @@ async function buildWeeklyReportHTML(weekLabel) {
             <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-weight:600;color:#374151">${i + 1}</td>
             <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb">${r.name || '—'}</td>
             <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;color:#6b7280">${r.email}</td>
-            <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;color:#2563eb">${r.solved_count || 0} / 20</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;color:#2563eb">${r.solved_count || 0} / ${visteonTotal}</td>
             <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;text-align:center">${r.submission_count || 0}</td>
             <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;color:${(r.avg_score || 0) >= 70 ? '#16a34a' : '#dc2626'}">${r.avg_score || '—'}%</td>
             <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;text-align:center;color:${(r.total_violations || 0) > 5 ? '#dc2626' : '#374151'}">${r.total_violations || 0}</td>

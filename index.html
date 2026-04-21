@@ -2350,169 +2350,96 @@
                         </button>
                     </div>
 
-                    <!-- ── RUBRIC GRADING PANEL (shown when a submission is selected) ── -->
-                    <div x-show="hackathonGradingSubmission" class="border-b border-slate-800 bg-slate-950/60">
-
-                        <!-- Panel header -->
-                        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-                            <div class="flex items-center gap-3">
-                                <div class="w-9 h-9 rounded-full bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-xs font-black text-purple-400"
-                                    x-text="hackathonGradingSubmission ? hackathonGradingSubmission.candidateName.substring(0,2).toUpperCase() : ''"></div>
-                                <div>
-                                    <div class="text-sm font-black text-white" x-text="hackathonGradingSubmission ? hackathonGradingSubmission.candidateName : ''"></div>
-                                    <div class="text-[10px] text-slate-500" x-text="hackathonGradingSubmission ? (hackathonGradingSubmission.projectTitle + ' · ' + hackathonGradingSubmission.email) : ''"></div>
-                                </div>
+                    <!-- Grading panel — shown when a submission is selected -->
+                    <div x-show="hackathonGradingSubmission" class="border-b border-slate-800 p-6 bg-slate-950/50">
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h4 class="text-base font-black text-white" x-text="hackathonGradingSubmission ? hackathonGradingSubmission.candidateName : ''"></h4>
+                                <p class="text-xs text-slate-500" x-text="hackathonGradingSubmission ? hackathonGradingSubmission.projectTitle : ''"></p>
                             </div>
-                            <button @click="hackathonGradingSubmission = null" class="text-slate-600 hover:text-white text-xs flex items-center gap-1 transition-colors">
+                            <button @click="hackathonGradingSubmission = null" class="text-slate-600 hover:text-white text-xs">
                                 <i class="fas fa-times"></i> Close
                             </button>
                         </div>
 
-                        <div class="p-6 space-y-6">
-
-                            <!-- Code viewer -->
-                            <div x-show="hackathonGradingSubmission && hackathonGradingSubmission.code && hackathonGradingSubmission.code.length">
-                                <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Submitted Code</div>
-                                <pre class="bg-black border border-slate-800 rounded-xl p-4 text-xs text-slate-300 code-font overflow-x-auto max-h-52 overflow-y-auto custom-scrollbar"
-                                    x-text="hackathonGradingSubmission && hackathonGradingSubmission.code && hackathonGradingSubmission.code[0] ? hackathonGradingSubmission.code[0].content : ''"></pre>
-                            </div>
-
-                            <!-- Quick stats row -->
-                            <div class="grid grid-cols-3 gap-3">
-                                <div class="bg-slate-900 rounded-xl border border-slate-800 p-3 text-center">
-                                    <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Auto Score</div>
-                                    <div class="text-xl font-black text-blue-400" x-text="(hackathonGradingSubmission ? hackathonGradingSubmission.autoScore : 0) + '%'"></div>
-                                </div>
-                                <div class="bg-slate-900 rounded-xl border border-slate-800 p-3 text-center">
-                                    <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Solve Time</div>
-                                    <div class="text-xl font-black text-amber-400" x-text="hackathonGradingSubmission ? (hackathonGradingSubmission.solveTime || '—') + ' min' : '—'"></div>
-                                </div>
-                                <div class="bg-slate-900 rounded-xl border border-slate-800 p-3 text-center">
-                                    <div class="text-[10px] text-slate-500 uppercase tracking-widest mb-1">Attempts</div>
-                                    <div class="text-xl font-black text-red-400" x-text="hackathonGradingSubmission ? (hackathonGradingSubmission.attempts || 1) : 1"></div>
-                                </div>
-                            </div>
-
-                            <!-- AI Evaluate button -->
-                            <div class="flex items-center gap-3">
-                                <button @click="rubricEvaluateWithAI()"
-                                    :disabled="rubricAiLoading"
-                                    class="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 disabled:opacity-50 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-purple-900/30">
-                                    <i class="fas fa-robot text-xs"></i>
-                                    <span x-text="rubricAiLoading ? 'Evaluating…' : 'Evaluate with AI'"></span>
-                                </button>
-                                <span class="text-[10px] text-slate-600">Claude will score all 6 criteria from the submitted code</span>
-                            </div>
-
-                            <!-- AI feedback box -->
-                            <div x-show="rubricAiFeedback || rubricAiLoading"
-                                class="bg-slate-900 border border-cyan-500/20 rounded-xl p-4">
-                                <div class="flex items-center gap-2 mb-2">
-                                    <span class="w-2 h-2 rounded-full bg-cyan-400" :class="rubricAiLoading ? 'animate-pulse' : ''"></span>
-                                    <span class="text-[10px] font-black text-cyan-400 uppercase tracking-widest">Claude AI Evaluator</span>
-                                </div>
-                                <div x-show="rubricAiLoading" class="flex gap-1.5 items-center text-xs text-blue-400 font-mono">
-                                    Evaluating<span class="animate-bounce" style="animation-delay:0s">.</span><span class="animate-bounce" style="animation-delay:.15s">.</span><span class="animate-bounce" style="animation-delay:.3s">.</span>
-                                </div>
-                                <pre x-show="!rubricAiLoading && rubricAiFeedback"
-                                    class="text-xs text-slate-300 whitespace-pre-wrap leading-relaxed" x-text="rubricAiFeedback"></pre>
-                            </div>
-
-                            <!-- 6-Criterion Rubric Table -->
-                            <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-                                <div class="px-5 py-3 border-b border-slate-800 flex items-center justify-between">
-                                    <span class="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rubric Criteria</span>
-                                    <span class="text-[10px] text-slate-600">Score each criterion — AI fills these automatically</span>
-                                </div>
-                                <table class="w-full text-sm">
-                                    <thead>
-                                        <tr class="border-b border-slate-800">
-                                            <th class="text-left px-5 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-widest">Criterion</th>
-                                            <th class="text-center px-3 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-widest w-20">Weight</th>
-                                            <th class="text-right px-5 py-2.5 text-[10px] font-black text-slate-500 uppercase tracking-widest w-36">Score / Max</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-slate-800/60">
-                                        <template x-for="crit in rubricCriteria" :key="crit.id">
-                                            <tr class="hover:bg-slate-800/30 transition-colors">
-                                                <td class="px-5 py-3">
-                                                    <div class="font-bold text-white text-xs" x-text="crit.name"></div>
-                                                    <div class="text-[10px] text-slate-500 mt-0.5" x-text="crit.desc"></div>
-                                                    <!-- AI badge -->
-                                                    <span x-show="rubricAiScores[crit.id] != null"
-                                                        class="inline-block mt-1 text-[9px] font-black px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/25"
-                                                        x-text="'AI: ' + rubricAiScores[crit.id]"></span>
-                                                </td>
-                                                <td class="px-3 py-3 text-center">
-                                                    <span class="inline-block text-[10px] font-black px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/25"
-                                                        x-text="crit.weight + '%'"></span>
-                                                </td>
-                                                <td class="px-5 py-3">
-                                                    <div class="flex items-center justify-end gap-2">
-                                                        <input type="number" :min="0" :max="crit.max"
-                                                            :id="'rubric_score_' + crit.id"
-                                                            x-model.number="rubricManualScores[crit.id]"
-                                                            @input="rubricUpdateTotal()"
-                                                            class="w-16 bg-slate-950 border border-slate-700 focus:border-purple-500 rounded-lg px-2 py-1.5 text-white text-center text-sm font-mono outline-none transition-colors"
-                                                            placeholder="—">
-                                                        <span class="text-slate-500 text-xs font-mono" x-text="'/ ' + crit.max"></span>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        </template>
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            <!-- Composite Score Preview -->
-                            <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
-                                <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Composite Score Preview</div>
-                                <div class="flex items-center gap-6">
-                                    <div>
-                                        <div class="text-5xl font-black leading-none"
-                                            :class="rubricTotalScore >= 70 ? 'text-emerald-400' : rubricTotalScore >= 50 ? 'text-amber-400' : 'text-red-400'"
-                                            x-text="rubricTotalScore"></div>
-                                        <div class="text-[10px] text-slate-500 mt-1">out of 100</div>
-                                    </div>
-                                    <div class="flex-1">
-                                        <div class="h-3 bg-slate-800 rounded-full overflow-hidden mb-3">
-                                            <div class="h-full rounded-full transition-all duration-500"
-                                                :style="'width:' + rubricTotalScore + '%;background:' + (rubricTotalScore >= 70 ? '#10b981' : rubricTotalScore >= 50 ? '#f59e0b' : '#ef4444')"
-                                            ></div>
-                                        </div>
-                                        <div class="grid grid-cols-2 gap-x-6 gap-y-1 text-[10px] text-slate-500">
-                                            <template x-for="crit in rubricCriteria" :key="crit.id">
-                                                <div class="flex justify-between">
-                                                    <span x-text="crit.name.split(' ')[0]"></span>
-                                                    <span class="font-mono text-slate-400" x-text="(rubricManualScores[crit.id] || 0) + '/' + crit.max"></span>
-                                                </div>
-                                            </template>
-                                        </div>
-                                    </div>
-                                    <div class="text-center shrink-0">
-                                        <div class="w-14 h-14 rounded-full border-2 flex items-center justify-center font-black text-lg"
-                                            :class="rubricTotalScore >= 85 ? 'border-emerald-400 text-emerald-400' : rubricTotalScore >= 70 ? 'border-blue-400 text-blue-400' : rubricTotalScore >= 55 ? 'border-amber-400 text-amber-400' : 'border-red-400 text-red-400'"
-                                            x-text="rubricTotalScore >= 85 ? 'A' : rubricTotalScore >= 70 ? 'B' : rubricTotalScore >= 55 ? 'C' : rubricTotalScore >= 40 ? 'D' : 'F'">
-                                        </div>
-                                        <div class="text-[10px] text-slate-600 mt-1"
-                                            :class="rubricTotalScore >= 50 ? 'text-emerald-500' : 'text-red-500'"
-                                            x-text="rubricTotalScore >= 50 ? 'PASS' : 'FAIL'"></div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Comments -->
-                            <textarea x-model="hackathonGradeComments" rows="3"
-                                class="w-full bg-slate-950 border border-slate-800 focus:border-purple-500 rounded-xl px-4 py-3 text-sm text-slate-300 outline-none resize-none code-font transition-colors"
-                                placeholder="Feedback for the candidate (saved with the grade)…"></textarea>
-
-                            <!-- Submit -->
-                            <button @click="submitHackathonGrade()" :disabled="isGrading"
-                                class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
-                                <i class="fas fa-check-circle"></i>
-                                <span x-text="isGrading ? 'Saving…' : 'Submit Grade'"></span>
-                            </button>
+                        <!-- Code viewer -->
+                        <div x-show="hackathonGradingSubmission && hackathonGradingSubmission.code" class="mb-5">
+                            <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Submitted Code</div>
+                            <pre class="bg-slate-950 border border-slate-800 rounded-xl p-4 text-xs text-slate-300 code-font overflow-x-auto max-h-48 overflow-y-auto custom-scrollbar"
+                                x-text="hackathonGradingSubmission && hackathonGradingSubmission.code ? hackathonGradingSubmission.code[0].content : ''"></pre>
                         </div>
+
+                        <!-- Auto scores display -->
+                        <div class="grid grid-cols-3 gap-3 mb-5">
+                            <div class="bg-slate-900 rounded-xl border border-slate-800 p-3 text-center">
+                                <div class="text-[10px] text-slate-500 uppercase mb-1">Correctness</div>
+                                <div class="text-xl font-black text-blue-400" x-text="(hackathonGradingSubmission ? hackathonGradingSubmission.autoScore : 0) + '%'"></div>
+                            </div>
+                            <div class="bg-slate-900 rounded-xl border border-slate-800 p-3 text-center">
+                                <div class="text-[10px] text-slate-500 uppercase mb-1">Solve Time</div>
+                                <div class="text-xl font-black text-amber-400" x-text="hackathonGradingSubmission ? (hackathonGradingSubmission.solveTime || '—') + ' min' : '—'"></div>
+                            </div>
+                            <div class="bg-slate-900 rounded-xl border border-slate-800 p-3 text-center">
+                                <div class="text-[10px] text-slate-500 uppercase mb-1">Attempts</div>
+                                <div class="text-xl font-black text-red-400" x-text="hackathonGradingSubmission ? (hackathonGradingSubmission.attempts || 1) : 1"></div>
+                            </div>
+                        </div>
+
+                        <!-- Manual score sliders -->
+                        <div class="space-y-4 mb-5">
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="text-xs font-bold text-slate-300">Code Quality & Style</label>
+                                    <span class="text-sm font-black text-purple-400" x-text="hackathonManualScores.codeQuality + '/10'"></span>
+                                </div>
+                                <input type="range" min="0" max="10" step="1" x-model.number="hackathonManualScores.codeQuality"
+                                    class="w-full" style="accent-color:#8b5cf6">
+                                <div class="text-[10px] text-slate-600 mt-0.5">Readability, naming, comments, MISRA hygiene</div>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between mb-1">
+                                    <label class="text-xs font-bold text-slate-300">Problem-Solving Approach</label>
+                                    <span class="text-sm font-black text-purple-400" x-text="hackathonManualScores.approach + '/10'"></span>
+                                </div>
+                                <input type="range" min="0" max="10" step="1" x-model.number="hackathonManualScores.approach"
+                                    class="w-full" style="accent-color:#8b5cf6">
+                                <div class="text-[10px] text-slate-600 mt-0.5">Algorithm choice, edge cases, defensive programming</div>
+                            </div>
+                        </div>
+
+                        <!-- Composite score preview -->
+                        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-4 mb-4">
+                            <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Composite Score Preview</div>
+                            <div class="flex items-center gap-6">
+                                <div class="text-4xl font-black text-white"
+                                    x-text="Math.round(
+                                        (hackathonGradingSubmission ? hackathonGradingSubmission.autoScore : 0) * 0.35 +
+                                        Math.max(0, 20 - Math.min((hackathonGradingSubmission ? hackathonGradingSubmission.solveTime || 20 : 20), 20)) +
+                                        hackathonManualScores.codeQuality * 2 +
+                                        hackathonManualScores.approach * 1.5 -
+                                        Math.min((hackathonGradingSubmission ? (hackathonGradingSubmission.attempts || 1) - 1 : 0) * 2, 10)
+                                    ) + ' pts'">
+                                </div>
+                                <div class="flex-1 space-y-1 text-[10px] text-slate-500">
+                                    <div class="flex justify-between"><span>Correctness (35%)</span><span x-text="Math.round((hackathonGradingSubmission ? hackathonGradingSubmission.autoScore : 0) * 0.35) + ' pts'"></span></div>
+                                    <div class="flex justify-between"><span>Time bonus (20%)</span><span x-text="Math.max(0, 20 - Math.min((hackathonGradingSubmission ? hackathonGradingSubmission.solveTime || 20 : 20), 20)) + ' pts'"></span></div>
+                                    <div class="flex justify-between"><span>Quality (20%)</span><span x-text="hackathonManualScores.codeQuality * 2 + ' pts'"></span></div>
+                                    <div class="flex justify-between"><span>Approach (15%)</span><span x-text="hackathonManualScores.approach * 1.5 + ' pts'"></span></div>
+                                    <div class="flex justify-between text-red-400"><span>Attempt penalty</span><span x-text="'-' + Math.min((hackathonGradingSubmission ? (hackathonGradingSubmission.attempts || 1) - 1 : 0) * 2, 10) + ' pts'"></span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Comments -->
+                        <textarea x-model="hackathonGradeComments" rows="3"
+                            class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-300 outline-none focus:ring-2 focus:ring-purple-500 resize-none mb-4 code-font"
+                            placeholder="Feedback for the candidate..."></textarea>
+
+                        <button @click="submitHackathonGrade()" :disabled="isGrading"
+                            class="w-full bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white py-3 rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2">
+                            <i class="fas fa-check-circle"></i>
+                            <span x-text="isGrading ? 'Saving...' : 'Submit Grade'"></span>
+                        </button>
                     </div>
 
                     <!-- Submissions list -->
@@ -2959,6 +2886,8 @@
 
             return {
 
+
+
                 isLoggedIn: false, // Enforce login screen
                 authLoading: false, // Auth API in-progress flag
                 authStep: isAdmin ? 'admin_login' : 'details',
@@ -3010,21 +2939,6 @@
                 hackathonGradingSubmission: null,
                 hackathonManualScores: { codeQuality: 5, approach: 5 },
                 hackathonGradeComments: '',
-
-                // ── Full 6-criterion rubric state ──
-                rubricCriteria: [
-                    { id: 'correctness',           name: 'Functional Correctness',      desc: 'Code compiles, runs, produces correct output. Core logic is sound.',                       weight: 30, max: 30 },
-                    { id: 'code_quality',          name: 'Code Quality & Standards',    desc: 'Follows MISRA-C / coding standards. Proper naming, modular structure, no dead code.',    weight: 20, max: 20 },
-                    { id: 'problem_understanding', name: 'Problem Understanding',       desc: 'Demonstrates clear grasp of requirements, constraints, and edge cases.',                  weight: 15, max: 15 },
-                    { id: 'innovation',            name: 'Innovation & Approach',       desc: 'Novel or efficient solution strategy. Thoughtful design beyond bare minimum.',            weight: 15, max: 15 },
-                    { id: 'documentation',         name: 'Documentation & Comments',    desc: 'Inline comments or README clearly explain logic, assumptions, and limitations.',          weight: 10, max: 10 },
-                    { id: 'testing',               name: 'Testing & Validation',        desc: 'Handles edge cases, demonstrates verification steps, test case coverage.',                weight: 10, max: 10 },
-                ],
-                rubricManualScores: { correctness: null, code_quality: null, problem_understanding: null, innovation: null, documentation: null, testing: null },
-                rubricAiScores: {},
-                rubricAiFeedback: '',
-                rubricAiLoading: false,
-                rubricTotalScore: 0,
                 hackathonTimeLeft: '00:00',
                 hackathonSolved: 0,
                 hackathonTotal: 0,
@@ -4396,8 +4310,17 @@
                     });
                 },
 
-                get solvedCount() { return this.solvedProjectIds.length; },
-                get totalProgress() { return Math.round((this.solvedCount / (this.selectedTopic?.id === 'VISTEON_C' ? 20 : (this.allowedProjects.length || this.projects.length))) * 100) || 0; },
+                // Only count solved problems that belong to the projects this user is allowed to see.
+                // Without this filter, IDs from other topics (e.g. general C problems solved in a
+                // previous session) inflate the Visteon completion count on the dashboard.
+                get solvedCount() {
+                    const allowedIds = new Set(this.allowedProjects.map(p => p.id));
+                    return this.solvedProjectIds.filter(id => allowedIds.has(id)).length;
+                },
+                get totalProgress() {
+                    const total = this.allowedProjects.length || this.projects.length;
+                    return Math.round((this.solvedCount / total) * 100) || 0;
+                },
                 get totalPointsEarned() {
                     return this.projects.filter(p => this.solvedProjectIds.includes(p.id))
                         .reduce((sum, p) => sum + p.points, 0);
@@ -5216,111 +5139,8 @@
 
                 openHackathonGrading(sub) {
                     this.hackathonGradingSubmission = sub;
-                    // Reset rubric state
-                    this.rubricAiFeedback = '';
-                    this.rubricAiScores = {};
-                    this.rubricAiLoading = false;
-                    this.hackathonGradeComments = sub.hackathonGrade ? (sub.hackathonGrade.comments || '') : '';
-                    // Pre-populate scores if already graded
-                    if (sub.hackathonGrade && sub.hackathonGrade.rubricScores) {
-                        this.rubricManualScores = { ...sub.hackathonGrade.rubricScores };
-                    } else {
-                        this.rubricManualScores = { correctness: null, code_quality: null, problem_understanding: null, innovation: null, documentation: null, testing: null };
-                    }
-                    this.rubricUpdateTotal();
-                },
-
-                rubricUpdateTotal() {
-                    let total = 0;
-                    this.rubricCriteria.forEach(c => {
-                        const v = parseFloat(this.rubricManualScores[c.id]);
-                        if (!isNaN(v)) total += Math.min(Math.max(v, 0), c.max);
-                    });
-                    this.rubricTotalScore = Math.round(total);
-                },
-
-                async rubricEvaluateWithAI() {
-                    if (this.rubricAiLoading || !this.hackathonGradingSubmission) return;
-                    this.rubricAiLoading = true;
-                    this.rubricAiFeedback = '';
-
-                    const sub = this.hackathonGradingSubmission;
-                    const codeContent = (sub.code && sub.code[0]) ? sub.code[0].content : '(no code submitted)';
-                    const criteriaList = this.rubricCriteria.map(c =>
-                        `- **${c.name}** (max ${c.max} pts, weight ${c.weight}%): ${c.desc}`
-                    ).join('\n');
-
-                    const prompt = `You are an expert technical evaluator for a hackathon run by Visteon and SkillLync.
-Candidate: ${sub.candidateName}
-Problem: ${sub.projectTitle}
-Auto test score: ${sub.autoScore}% (${sub.testsPassed}/${sub.testsTotal} tests passed)
-Solve time: ${sub.solveTime || '?'} minutes | Attempts: ${sub.attempts || 1}
-
-Evaluate the following C/C++ submission against this rubric:
-${criteriaList}
-
-SUBMITTED CODE:
-\`\`\`c
-${codeContent.slice(0, 6000)}
-\`\`\`
-
-Instructions:
-1. For EACH criterion, give a score (integer, within max) and a 1-2 sentence justification.
-2. Return a JSON block followed by a markdown summary.
-
-Return EXACTLY this format:
-<json>
-{
-  "correctness": <0-30>,
-  "code_quality": <0-20>,
-  "problem_understanding": <0-15>,
-  "innovation": <0-15>,
-  "documentation": <0-10>,
-  "testing": <0-10>
-}
-</json>
-
-Then write a 3-5 sentence evaluator summary (strengths, weaknesses, recommendation).
-Then per-criterion details: **[Criterion Name]** (score/max): Justification.`;
-
-                    try {
-                        const apiRes = await fetch('https://api.anthropic.com/v1/messages', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                model: 'claude-sonnet-4-20250514',
-                                max_tokens: 1000,
-                                messages: [{ role: 'user', content: prompt }]
-                            })
-                        });
-                        const data = await apiRes.json();
-                        const raw = (data.content || []).map(b => b.text || '').join('\n');
-
-                        // Extract JSON scores
-                        const jsonMatch = raw.match(/<json>([\s\S]*?)<\/json>/);
-                        if (jsonMatch) {
-                            const scores = JSON.parse(jsonMatch[1].trim());
-                            this.rubricCriteria.forEach(c => {
-                                const val = scores[c.id];
-                                if (typeof val === 'number') {
-                                    const clamped = Math.min(Math.max(Math.round(val), 0), c.max);
-                                    this.rubricAiScores[c.id] = clamped;
-                                    this.rubricManualScores[c.id] = clamped;
-                                }
-                            });
-                            this.rubricUpdateTotal();
-                        }
-
-                        // Display feedback (strip json block)
-                        this.rubricAiFeedback = raw.replace(/<json>[\s\S]*?<\/json>/, '').trim();
-                        this.successToast = '✅ AI evaluation complete';
-                        setTimeout(() => { this.successToast = ''; }, 3000);
-                    } catch(e) {
-                        this.rubricAiFeedback = 'Error: ' + e.message;
-                        this.successToast = '❌ AI evaluation failed';
-                        setTimeout(() => { this.successToast = ''; }, 3000);
-                    }
-                    this.rubricAiLoading = false;
+                    this.hackathonManualScores = sub.hackathonGrade ? { ...sub.hackathonGrade.manualScores } : { codeQuality: 5, approach: 5 };
+                    this.hackathonGradeComments = sub.hackathonGrade ? sub.hackathonGrade.comments || '' : '';
                 },
 
                 async submitHackathonGrade() {
@@ -5328,20 +5148,27 @@ Then per-criterion details: **[Criterion Name]** (score/max): Justification.`;
                     this.isGrading = true;
                     try {
                         const sub = this.hackathonGradingSubmission;
+                        const correctness = (sub.autoScore || 0) * 0.35;
+                        const solveTime = sub.solveTime || 20;
+                        const timeBonus = solveTime < 10 ? 20 : solveTime < 20 ? 15 : solveTime < 40 ? 10 : 5;
+                        const quality = this.hackathonManualScores.codeQuality * 2;
+                        const approach = this.hackathonManualScores.approach * 1.5;
+                        const penalty = Math.min(((sub.attempts || 1) - 1) * 2, 10);
+                        const composite = Math.round(correctness + timeBonus + quality + approach - penalty);
                         const res = await fetch('/api/hackathon/grade', {
                             method: 'POST',
                             headers: this._authHeaders(),
                             body: JSON.stringify({
                                 submissionId: sub.id,
-                                rubricScores: { ...this.rubricManualScores },
-                                totalScore: this.rubricTotalScore,
+                                manualScores: this.hackathonManualScores,
                                 comments: this.hackathonGradeComments,
+                                compositeScore: composite,
                                 trainerName: this.user.name
                             })
                         });
                         const result = await res.json();
                         if (result.success) {
-                            this.successToast = '✅ Grade saved! Score: ' + this.rubricTotalScore + ' / 100';
+                            this.successToast = '✅ Grade saved! Composite: ' + composite + ' pts';
                             setTimeout(() => { this.successToast = ''; }, 4000);
                             this.hackathonGradingSubmission = null;
                             this.loadHackathonSubmissions();
