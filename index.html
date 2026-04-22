@@ -2893,10 +2893,6 @@
 
             return {
 
-        body: JSON.stringify(sub)
-    });
-    alert("Evaluated");
-},
 
                 isLoggedIn: false, // Enforce login screen
                 authLoading: false, // Auth API in-progress flag
@@ -4244,10 +4240,6 @@
                     }).map(p => {
                         return {
 
-        body: JSON.stringify(sub)
-    });
-    alert("Evaluated");
-},
  ...p, solved: this.solvedProjectIds.includes(p.id) };
                     });
                 },
@@ -4492,10 +4484,6 @@
                         } catch (e) {
                             return {
 
-        body: JSON.stringify(sub)
-    });
-    alert("Evaluated");
-},
  error: e.message };
                         }
                     };
@@ -4704,10 +4692,6 @@
                         // We treat anything other than 3 as an error/issue
                         return {
 
-        body: JSON.stringify(sub)
-    });
-    alert("Evaluated");
-},
 
                             error: result.status.id > 3,
                             stdout: result.stdout ? atob(result.stdout) : "",
@@ -4736,10 +4720,6 @@
                     } catch (e) {
                         return {
 
-        body: JSON.stringify(sub)
-    });
-    alert("Evaluated");
-},
  error: true, compile_output: 'Failed to connect to integrated toolchain.' };
                     }
                 },
@@ -5413,10 +5393,6 @@
                         const passRate = totalTests > 0 ? Math.round((passedTests / totalTests) * 100) : 0;
                         return {
 
-        body: JSON.stringify(sub)
-    });
-    alert("Evaluated");
-},
  c, subs, totalTests, passedTests, avgScore, totalViolations, tabSwitches, copyPaste, passRate };
                     }).sort((a, b) => b.avgScore - a.avgScore);
 
@@ -5595,10 +5571,6 @@
                             const detail = await r.json();
                             return {
 
-        body: JSON.stringify(sub)
-    });
-    alert("Evaluated");
-},
  ...s, violation_log: detail.violation_log, test_results: detail.test_results };
                         } catch { return s; }
                     }));
@@ -5616,10 +5588,6 @@
                             const detail = await r.json();
                             return {
 
-        body: JSON.stringify(sub)
-    });
-    alert("Evaluated");
-},
  ...s, violation_log: detail.violation_log, test_results: detail.test_results };
                         } catch { return s; }
                     }));
