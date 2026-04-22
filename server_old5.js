@@ -1,0 +1,1549 @@
+// ═══════════════════════════════════════════════════════════════════════════════
+// VirtualLab — Production Backend (Express + SQLite + JWT Auth)
+// Handles: Auth, Compile, Submissions, Grading, Progress, Leaderboard
+// ═══════════════════════════════════════════════════════════════════════════════
+
+const cluster = require('cluster');
+const os = require('os');
+require('dotenv').config();
+const nodemailer = require('nodemailer');
+const bcrypt = require('bcryptjs');
+
+// ══════════════════════════════════════════════════════
+// CLUSTER MASTER — fork workers & respawn on crash
+// ══════════════════════════════════════════════════════
+if (cluster.isMaster || cluster.isPrimary) {
+    const NUM_WORKERS = parseInt(process.env.WORKERS) || Math.min(os.cpus().length, 4);
+    console.log(`[Master PID ${process.pid}] Starting ${NUM_WORKERS} workers...`);
+
+    // DB Schema Initialization (Master Only) - Prevents SQLite 'database is locked' errors
+    // when multiple workers start simultaneously and try to execute CREATE TABLE & PRAGMA.
+    const fs = require('fs');
+    const path = require('path');
+    const Database = require('better-sqlite3');
+
+    const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'virtuallab.db');
+    const dataDir = path.dirname(DB_PATH);
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+
+    try {
+        const initDb = new Database(DB_PATH);
+        initDb.pragma('journal_mode = WAL');
+        initDb.pragma('synchronous = NORMAL');
+        initDb.exec(`
+          CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            email TEXT UNIQUE NOT NULL,
+            role TEXT DEFAULT 'candidate',
+            password TEXT, 
+            otp TEXT,
+            otp_expires INTEGER,
+            session_state TEXT,
+            created_at TEXT DEFAULT (datetime('now'))
+          );
+
+          CREATE TABLE IF NOT EXISTS whitelist (
+            email TEXT PRIMARY KEY,
+            role TEXT DEFAULT 'candidate'
+          );
+
+          CREATE TABLE IF NOT EXISTS submissions (
+            id TEXT PRIMARY KEY,
+            candidate_name TEXT,
+            email TEXT,
+            project_id TEXT,
+            project_title TEXT,
+            topic_id TEXT,
+            topic_name TEXT,
+            day INTEGER,
+            code TEXT,
+            test_results TEXT,
+            tests_passed INTEGER DEFAULT 0,
+            tests_total INTEGER DEFAULT 0,
+            auto_score INTEGER DEFAULT 0,
+            violation_count INTEGER DEFAULT 0,
+            violation_log TEXT,
+            status TEXT DEFAULT 'pending',
+            submitted_at TEXT,
+            grade TEXT
+          );
+
+          CREATE TABLE IF NOT EXISTS progress (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT NOT NULL,
+            project_id TEXT NOT NULL,
+            files TEXT NOT NULL,
+            solved INTEGER DEFAULT 0,
+            updated_at TEXT DEFAULT (datetime('now')),
+            UNIQUE(email, project_id)
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_submissions_email ON submissions(email);
+          CREATE INDEX IF NOT EXISTS idx_submissions_status ON submissions(status);
+          CREATE INDEX IF NOT EXISTS idx_progress_email ON progress(email);
+        `);
+        initDb.close();
+        console.log(`[Master PID ${process.pid}] SQLite Database initialized successfully.`);
+    } catch (e) {
+        console.error(`[Master PID ${process.pid}] Failed to initialize database:`, e);
+    }
+
+    // Add MinGW GCC to PATH on Windows
+    if (os.platform() === 'win32') {
+        const mingwPaths = [
+            'C:\\msys64\\mingw64\\bin', 'C:\\msys64\\ucrt64\\bin',
+            'C:\\MinGW\\bin', 'C:\\mingw64\\bin', 'C:\\TDM-GCC-64\\bin'
+        ];
+        for (const p of mingwPaths) {
+            if (fs.existsSync(path.join(p, 'gcc.exe')) && !process.env.PATH.includes(p)) {
+                process.env.PATH = p + ';' + process.env.PATH;
+                console.log(`[Master] Added GCC path: ${p}`);
+                break;
+            }
+        }
+    }
+
+    for (let i = 0; i < NUM_WORKERS; i++) cluster.fork();
+
+    cluster.on('exit', (worker, code, signal) => {
+        console.log(`[Master] Worker ${worker.process.pid} died (${signal || code}). Restarting...`);
+        cluster.fork();
+    });
+
+    const shutdown = () => {
+        console.log('[Master] Graceful shutdown...');
+        for (const id in cluster.workers) cluster.workers[id].process.kill('SIGTERM');
+        setTimeout(() => process.exit(0), 5000);
+    };
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
+    return;
+}
+
+// ══════════════════════════════════════════════════════
+// WORKER — Express App
+// ══════════════════════════════════════════════════════
+const express = require('express');
+const { exec } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const jwt = require('jsonwebtoken');
+const helmet = require('helmet');
+const cors = require('cors');
+const rateLimit = require('express-rate-limit');
+const Database = require('better-sqlite3');
+
+const PORT = parseInt(process.env.PORT) || 8080;
+const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'data', 'virtuallab.db');
+
+// ── Security validation on startup ──────────────────────
+const INSECURE_JWT = 'virtuallab-secret-key-2024';
+const JWT_SECRET = process.env.JWT_SECRET || INSECURE_JWT;
+
+if (process.env.NODE_ENV === 'production') {
+    if (!process.env.JWT_SECRET || process.env.JWT_SECRET === INSECURE_JWT) {
+        console.error('[FATAL] JWT_SECRET is not set or is using the insecure default. Set a strong random secret in your .env file.');
+        process.exit(1);
+    }
+    if (!process.env.ADMIN_PASS || process.env.ADMIN_PASS === 'admin123') {
+        console.error('[FATAL] ADMIN_PASS is not set or is still the default "admin123". Set a strong password in your .env file.');
+        process.exit(1);
+    }
+    if (process.env.DEBUG_AUTH === 'true') {
+        console.error('[FATAL] DEBUG_AUTH=true is not allowed in production. It exposes OTP codes in API responses.');
+        process.exit(1);
+    }
+    console.log('[Security] Production security checks passed ✓');
+}
+
+const ADMIN_PASS = process.env.ADMIN_PASS || 'admin123';
+
+// SMTP Configuration
+const transporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT) || 587,
+    secure: process.env.SMTP_PORT == 465,
+    auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS
+    }
+});
+
+async function sendOTPEmail(email, otp) {
+    const mailOptions = {
+        from: process.env.SMTP_FROM || '"VirtualLab" <noreply@virtuallab.io>',
+        to: email,
+        subject: 'Your VirtualLab Access Code',
+        text: `Your access code for VirtualLab is: ${otp}\n\nThis code will expire in 10 minutes.`,
+        html: `<div style="font-family: sans-serif; padding: 20px; color: #333;">
+                <h2>VirtualLab Access</h2>
+                <p>Hello,</p>
+                <p>Your 6-digit access code for the VirtualLab platform is:</p>
+                <div style="font-size: 32px; font-weight: bold; letter-spacing: 5px; color: #2563eb; padding: 10px 0;">${otp}</div>
+                <p>This code will expire in 10 minutes.</p>
+                <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                <p style="font-size: 12px; color: #666;">If you did not request this code, please ignore this email.</p>
+               </div>`
+    };
+    try {
+        await transporter.sendMail(mailOptions);
+        return true;
+    } catch (error) {
+        console.error('Email send failed:', error);
+        return false;
+    }
+}
+
+async function sendLoginNotification(email, name) {
+    const mailOptions = {
+        from: process.env.SMTP_FROM || '"VirtualLab" <noreply@virtuallab.io>',
+        to: email,
+        subject: 'New Login Alert - VirtualLab',
+        html: `<div style="font-family: sans-serif; padding: 20px; color: #333;">
+                <h2>Login Successful</h2>
+                <p>Hello ${name},</p>
+                <p>This is a notification that a new login was detected for your VirtualLab account at <b>${new Date().toLocaleString()}</b>.</p>
+                <p>If this was you, you can safely ignore this email. If not, please contact your administrator immediately.</p>
+                <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
+                <p style="font-size: 11px; color: #999;">Security Notification | SkillLync VirtualLab</p>
+               </div>`
+    };
+    try {
+        await transporter.sendMail(mailOptions);
+        return true;
+    } catch (error) {
+        console.error('Login notification send failed:', error);
+        return false;
+    }
+}
+const MAX_CONCURRENT_COMPILES = parseInt(process.env.MAX_COMPILES) || 12;
+const COMPILE_TIMEOUT = 10000;
+const RUN_TIMEOUT = 5000;
+const MAX_OUTPUT_BUFFER = 1024 * 1024;
+const WORKER_ID = cluster.worker ? cluster.worker.id : 0;
+
+console.log(`[Worker ${WORKER_ID}, PID ${process.pid}] Starting...`);
+
+// ══════════════════════════════════════════════════════
+// DATABASE SETUP
+// ══════════════════════════════════════════════════════
+const dataDir = path.dirname(DB_PATH);
+if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+
+const db = new Database(DB_PATH, { timeout: 10000 });
+// Wrap PRAGMA in try-catch because if multiple workers execute it simultaneously it may throw 'database is locked', 
+// even though WAL mode is already persistently set by the master process.
+try { db.pragma('journal_mode = WAL'); } catch (e) { /* ignore */ }
+try { db.pragma('synchronous = NORMAL'); } catch (e) { /* ignore */ }
+
+// Database schema initialized in the cluster master process
+
+console.log(`[Worker ${WORKER_ID}] SQLite DB ready at: ${DB_PATH}`);
+
+// ══════════════════════════════════════════════════════
+// COMPILE QUEUE (limits concurrent GCC processes)
+// ══════════════════════════════════════════════════════
+class CompileQueue {
+    constructor(maxConcurrent) {
+        this.maxConcurrent = maxConcurrent;
+        this.running = 0;
+        this.queue = [];
+    }
+
+    enqueue(fn) {
+        return new Promise((resolve, reject) => {
+            const run = () => {
+                this.running++;
+                fn().then(resolve).catch(reject).finally(() => {
+                    this.running--;
+                    if (this.queue.length > 0) this.queue.shift()();
+                });
+            };
+            if (this.running < this.maxConcurrent) run();
+            else this.queue.push(run);
+        });
+    }
+
+    get stats() {
+        return { running: this.running, queued: this.queue.length, max: this.maxConcurrent };
+    }
+}
+
+const compileQueue = new CompileQueue(MAX_CONCURRENT_COMPILES);
+
+function queuedExec(cmd, opts = {}) {
+    return compileQueue.enqueue(() => new Promise((resolve) => {
+        exec(cmd, {
+            timeout: opts.timeout || COMPILE_TIMEOUT,
+            maxBuffer: MAX_OUTPUT_BUFFER,
+            ...opts
+        }, (err, stdout, stderr) => resolve({ err, stdout, stderr }));
+    }));
+}
+
+// ══════════════════════════════════════════════════════
+// EXPRESS APP
+// ══════════════════════════════════════════════════════
+const app = express();
+
+// CORS — in production, lock to your domain via CORS_ORIGIN env var
+const corsOrigins = (process.env.CORS_ORIGIN || '*')
+    .split(',').map(o => o.trim()).filter(Boolean);
+const corsOptions = {
+    origin: corsOrigins.length === 1 && corsOrigins[0] === '*'
+        ? '*'
+        : (origin, cb) => {
+            if (!origin || corsOrigins.includes(origin)) return cb(null, true);
+            cb(new Error('Not allowed by CORS'));
+        },
+    methods: ['GET', 'POST', 'DELETE', 'OPTIONS']
+};
+
+app.use(helmet({
+    contentSecurityPolicy: false, // Disabled to allow CDN scripts in index.html
+    crossOriginResourcePolicy: { policy: 'cross-origin' }
+}));
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '500kb' }));
+app.use(express.urlencoded({ extended: false }));
+
+// Global compile rate limit: 30 compile calls/min per IP
+const compileRateLimit = rateLimit({
+    windowMs: 60 * 1000,
+    max: 30,
+    message: { error: true, compile_output: 'Rate limit: 30 compiles/min. Please slow down.' },
+    standardHeaders: true,
+    legacyHeaders: false
+});
+
+// Auth rate limit: 10 auth attempts/min per IP
+const authRateLimit = rateLimit({
+    windowMs: 60 * 1000,
+    max: 10,
+    message: { error: 'Too many auth attempts. Try again in 1 minute.' }
+});
+
+// Submission rate limit: 60 submissions/min per IP
+const submitRateLimit = rateLimit({
+    windowMs: 60 * 1000,
+    max: 60,
+    message: { error: 'Too many submissions. Please slow down.' }
+});
+
+// ══════════════════════════════════════════════════════
+// AUTH MIDDLEWARE
+// ══════════════════════════════════════════════════════
+function requireAuth(req, res, next) {
+    const header = req.headers['authorization'];
+    if (!header || !header.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Unauthorized: No token provided.' });
+    }
+    try {
+        const decoded = jwt.verify(header.split(' ')[1], JWT_SECRET);
+        req.user = decoded;
+        next();
+    } catch (e) {
+        return res.status(401).json({ error: 'Unauthorized: Invalid or expired token.' });
+    }
+}
+
+function requireAdmin(req, res, next) {
+    requireAuth(req, res, () => {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({ error: 'Forbidden: Admin access required.' });
+        }
+        next();
+    });
+}
+
+// ══════════════════════════════════════════════════════
+// HEALTH CHECK
+// ══════════════════════════════════════════════════════
+app.get('/health', (req, res) => {
+    res.json({
+        status: 'ok',
+        worker: WORKER_ID,
+        compileQueue: compileQueue.stats,
+        uptime: process.uptime(),
+        db: 'sqlite'
+    });
+});
+
+// ══════════════════════════════════════════════════════
+// PUBLIC CONFIG — Topic filter & branding for white-label instances
+// ══════════════════════════════════════════════════════
+app.get('/api/config', (req, res) => {
+    let allowedTopics = [];
+
+    // 1. Try to read from topics.json (User requested)
+    try {
+        const topicsConfigPath = path.join(__dirname, 'topics.json');
+        if (fs.existsSync(topicsConfigPath)) {
+            const config = JSON.parse(fs.readFileSync(topicsConfigPath, 'utf8'));
+            // Note: The frontend uses IDs like 'VISTEON_C', but the JSON uses titles like 'Visteon C Programming'.
+            // However, the user provided a list of titles. We will pass a special 'visibility' object 
+            // OR we can map them here if we had the full list of ID-to-Title mappings.
+            // For now, let's pass the raw visibility map so the frontend can use it.
+            return res.json({
+                topicVisibility: config,
+                platformTitle: process.env.PLATFORM_TITLE || 'SkillLyncVirtualLab',
+                platformSubtitle: process.env.PLATFORM_SUBTITLE || 'Industrial Grade Embedded & ECU Project Platform'
+            });
+        }
+    } catch (e) {
+        console.error('Error reading topics.json:', e);
+    }
+
+    // 2. Fallback to existing TOPIC_FILTER env var logic
+    const raw = (process.env.TOPIC_FILTER || '').trim();
+    allowedTopics = raw ? raw.split(',').map(t => t.trim()).filter(Boolean) : [];
+
+    res.json({
+        topicFilter: allowedTopics,
+        platformTitle: process.env.PLATFORM_TITLE || 'SkillLyncVirtualLab',
+        platformSubtitle: process.env.PLATFORM_SUBTITLE || 'Industrial Grade Embedded & ECU Project Platform'
+    });
+});
+
+// Admin Panel — Topic Visibility Controls
+app.get('/topics', (req, res) => {
+    try {
+        const data = fs.readFileSync(path.join(__dirname, 'topics.json'), 'utf8');
+        res.json(JSON.parse(data));
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to read topics.json' });
+    }
+});
+
+app.post('/update-topic', (req, res) => {
+    try {
+        const { topic, enabled } = req.body;
+        const filePath = path.join(__dirname, 'topics.json');
+        const config = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+
+        config[topic] = enabled;
+        fs.writeFileSync(filePath, JSON.stringify(config, null, 2));
+
+        console.log(`[Admin] Topic "${topic}" updated to ${enabled}`);
+        res.send('updated');
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to update topics.json' });
+    }
+});
+
+// Helper to check if email is business (non-public)
+const PUBLIC_DOMAINS = ['gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com', 'aol.com', 'icloud.com', 'protonmail.com', 'zoho.com', 'yandex.com', 'mail.com'];
+function isBusinessEmail(email) {
+    const domain = email.split('@')[1]?.toLowerCase();
+    if (!domain) return false;
+    return !PUBLIC_DOMAINS.includes(domain);
+}
+
+// ══════════════════════════════════════════════════════
+// AUTH ROUTES
+// ══════════════════════════════════════════════════════
+
+// Register endpoint: Validate email & send OTP
+app.post('/api/auth/register', authRateLimit, async (req, res) => {
+    const { name, email } = req.body;
+    if (!name || !email) return res.status(400).json({ error: 'Name and Email required.' });
+
+    // Validate Business Email
+    if (!isBusinessEmail(email)) {
+        return res.status(400).json({ error: 'Please use your official/business email ID (e.g., @skill-lync.com). Public mail providers like Gmail/Yahoo are not allowed.' });
+    }
+
+    // Check Whitelist if enabled
+    if (process.env.ENABLE_WHITELIST === 'true') {
+        const allowed = db.prepare("SELECT email FROM whitelist WHERE email = ?").get(email);
+        if (!allowed) {
+            // Also allow if it's one of the listed admin emails (initial setup)
+            const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
+            if (!adminEmails.includes(email.toLowerCase())) {
+                return res.status(403).json({ error: 'This email is not authorized to access the platform.' });
+            }
+        }
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expires = Date.now() + 600000; // 10 mins
+
+    try {
+        db.prepare(`
+            INSERT INTO users (name, email, otp, otp_expires) 
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(email) DO UPDATE SET name=?, otp=?, otp_expires=?
+        `).run(name, email, otp, expires, name, otp, expires);
+
+        const emailSent = await sendOTPEmail(email, otp);
+
+        const response = { message: 'OTP sent to your email.' };
+        if (process.env.DEBUG_AUTH === 'true' || !emailSent) {
+            response.otp = otp; // Fallback to display in UI for testing
+            if (!emailSent) response.note = "Email delivery failed. Using debug mode.";
+        }
+
+        res.json(response);
+    } catch (e) {
+        res.status(500).json({ error: 'Database error ' + e.message });
+    }
+});
+
+// POST /api/auth/verify — Verify OTP and issue JWT
+app.post('/api/auth/verify', authRateLimit, (req, res) => {
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ error: 'Email and OTP are required.' });
+
+    const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+    if (!user) return res.status(401).json({ error: 'User not found. Please register first.' });
+    if (user.otp !== String(otp)) return res.status(401).json({ error: 'Invalid access code.' });
+    if (Date.now() > user.otp_expires) return res.status(401).json({ error: 'Code expired. Please register again.' });
+
+    // Clear OTP after use
+    db.prepare('UPDATE users SET otp = NULL, otp_expires = NULL WHERE email = ?').run(email);
+
+    const token = jwt.sign(
+        { id: user.id, name: user.name, email: user.email, role: 'candidate' },
+        JWT_SECRET,
+        { expiresIn: '12h' }
+    );
+
+    let parsedSession = null;
+    if (user.session_state) {
+        try { parsedSession = JSON.parse(user.session_state); } catch (e) { }
+    }
+
+    // Send login notification email in background
+    sendLoginNotification(user.email, user.name).catch(e => console.error('BG Login notification error:', e));
+
+    res.json({ success: true, token, user: { name: user.name, email: user.email, role: 'candidate' }, session: parsedSession });
+});
+
+// Admin Login: Email based for multiple admins
+app.post('/api/auth/admin-login', authRateLimit, async (req, res) => {
+    const { email, pass } = req.body;
+    const configAdminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim().toLowerCase());
+    const configAdminPass = process.env.ADMIN_PASS || 'admin123';
+
+    if (!email || !pass) return res.status(400).json({ error: 'Email and password required.' });
+
+    if (configAdminEmails.includes(email.toLowerCase()) && pass === configAdminPass) {
+        const token = jwt.sign({
+            name: 'Administrator',
+            email: email.toLowerCase(),
+            role: 'admin'
+        }, JWT_SECRET, { expiresIn: '24h' });
+        res.json({ token });
+    } else {
+        res.status(401).json({ error: 'Invalid admin credentials.' });
+    }
+});
+
+// GET /api/auth/me — Return current user info from JWT
+app.get('/api/auth/me', requireAuth, (req, res) => {
+    let parsedSession = null;
+    if (req.user.role === 'candidate') {
+        const user = db.prepare('SELECT session_state FROM users WHERE email = ?').get(req.user.email);
+        if (user && user.session_state) {
+            try { parsedSession = JSON.parse(user.session_state); } catch (e) { }
+        }
+    }
+    res.json({ user: req.user, session: parsedSession });
+});
+
+// POST /api/auth/session — Save UI session state
+app.post('/api/auth/session', requireAuth, (req, res) => {
+    if (req.user.role !== 'candidate') return res.json({ success: true });
+    try {
+        db.prepare('UPDATE users SET session_state = ? WHERE email = ?')
+            .run(JSON.stringify(req.body.session || {}), req.user.email);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: 'Failed to save session' });
+    }
+});
+
+// ══════════════════════════════════════════════════════
+// USER MANAGEMENT (Admin only)
+// ══════════════════════════════════════════════════════
+
+// GET /api/users — List all registered candidates
+app.get('/api/users', requireAdmin, (req, res) => {
+    const users = db.prepare(`
+        SELECT u.id, u.name, u.email, u.role, u.created_at,
+               COUNT(DISTINCT s.id) as submission_count,
+               COUNT(DISTINCT CASE WHEN p.solved = 1 AND p.project_id LIKE 'VCA-%' THEN p.project_id END) as solved_count,
+               COUNT(DISTINCT CASE WHEN p.solved = 1 THEN p.project_id END) as solved_count_all
+        FROM users u
+        LEFT JOIN submissions s ON s.email = u.email
+        LEFT JOIN progress p ON p.email = u.email
+        GROUP BY u.id
+        ORDER BY u.created_at DESC
+    `).all();
+    res.json(users);
+});
+
+// DELETE /api/users/:email — Remove a candidate
+app.delete('/api/users/:email', requireAdmin, (req, res) => {
+    const email = decodeURIComponent(req.params.email);
+    db.prepare('DELETE FROM users WHERE email = ?').run(email);
+    res.json({ success: true });
+});
+
+// ══════════════════════════════════════════════════════
+// CODE PROGRESS (per user, server-side)
+// ══════════════════════════════════════════════════════
+
+// POST /api/progress/save — Save user's code for a project
+app.post('/api/progress/save', requireAuth, (req, res) => {
+    const { projectId, files, solved } = req.body;
+    const email = req.user.email;
+    if (!projectId || !files) return res.status(400).json({ error: 'projectId and files are required.' });
+
+    db.prepare(`
+        INSERT INTO progress (email, project_id, files, solved, updated_at)
+        VALUES (?, ?, ?, ?, datetime('now'))
+        ON CONFLICT(email, project_id) DO UPDATE SET
+          files = excluded.files,
+          solved = excluded.solved,
+          updated_at = excluded.updated_at
+    `).run(email, projectId, JSON.stringify(files), solved ? 1 : 0);
+
+    res.json({ success: true });
+});
+
+// GET /api/progress/:projectId — Load saved code for a project
+app.get('/api/progress/:projectId', requireAuth, (req, res) => {
+    const email = req.user.email;
+    const projectId = req.params.projectId;
+    const row = db.prepare('SELECT files, solved FROM progress WHERE email = ? AND project_id = ?').get(email, projectId);
+    if (!row) return res.json({ found: false });
+    try {
+        res.json({ found: true, files: JSON.parse(row.files), solved: row.solved === 1 });
+    } catch {
+        res.json({ found: false });
+    }
+});
+
+// GET /api/progress — Get all solved projects for current user
+app.get('/api/progress', requireAuth, (req, res) => {
+    const email = req.user.email;
+    const rows = db.prepare('SELECT project_id, solved FROM progress WHERE email = ?').all(email);
+    const solvedIds = rows.filter(r => r.solved === 1).map(r => r.project_id);
+    res.json({ solvedProjectIds: solvedIds });
+});
+
+// ══════════════════════════════════════════════════════
+// LEADERBOARD
+// ══════════════════════════════════════════════════════
+app.get('/api/leaderboard', (req, res) => {
+    const leaders = db.prepare(`
+        SELECT u.name, u.email,
+               COUNT(DISTINCT CASE WHEN p.solved = 1 AND p.project_id LIKE 'VCA-%' THEN p.project_id END) as solved_count,
+               COUNT(DISTINCT s.id) as submission_count
+        FROM users u
+        LEFT JOIN progress p ON p.email = u.email
+        LEFT JOIN submissions s ON s.email = u.email
+        WHERE u.role = 'candidate'
+        GROUP BY u.email
+        ORDER BY solved_count DESC, submission_count DESC
+        LIMIT 50
+    `).all();
+    res.json(leaders);
+});
+
+// ══════════════════════════════════════════════════════
+// SUBMISSION ROUTES
+// ══════════════════════════════════════════════════════
+
+// POST /api/submit — Submit assignment (requires auth)
+app.post('/api/submit', submitRateLimit, requireAuth, (req, res) => {
+    const data = req.body;
+    const submissionId = 'SUB-' + Date.now() + '-' + Math.random().toString(36).substr(2, 4);
+
+    try {
+        db.prepare(`
+            INSERT INTO submissions (
+                id, candidate_name, email, project_id, project_title,
+                topic_id, topic_name, day, code, test_results,
+                tests_passed, tests_total, auto_score, violation_count, violation_log,
+                status, submitted_at, grade
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', datetime('now'), NULL)
+        `).run(
+            submissionId,
+            data.candidateName || req.user.name,
+            data.email || req.user.email,
+            data.projectId || '',
+            data.projectTitle || '',
+            data.topicId || '',
+            data.topicName || '',
+            data.day || 1,
+            JSON.stringify(data.code || []),
+            JSON.stringify(data.testResults || []),
+            data.testsPassed || 0,
+            data.testsTotal || 0,
+            data.autoScore || 0,
+            data.violationCount || 0,
+            JSON.stringify(data.violationLog || [])
+        );
+        res.json({ success: true, submissionId });
+    } catch (e) {
+        console.error('[Submit]', e.message);
+        res.status(400).json({ error: e.message });
+    }
+});
+
+// GET /api/submissions — All submissions (admin only) with optional filters
+app.get('/api/submissions', requireAdmin, (req, res) => {
+    let query = `SELECT id, candidate_name, email, project_id, project_title,
+                        topic_id, topic_name, day, tests_passed, tests_total,
+                        auto_score, status, submitted_at, violation_count, grade
+                 FROM submissions WHERE 1=1`;
+    const params = [];
+
+    if (req.query.day) { query += ' AND day = ?'; params.push(req.query.day); }
+    if (req.query.status && req.query.status !== 'all') { query += ' AND status = ?'; params.push(req.query.status); }
+    if (req.query.email) { query += ' AND email = ?'; params.push(req.query.email); }
+
+    query += ' ORDER BY submitted_at DESC';
+
+    const rows = db.prepare(query).all(...params);
+    const result = rows.map(r => ({
+        ...r,
+        grade: r.grade ? JSON.parse(r.grade) : null
+    }));
+    res.json(result);
+});
+
+// GET /api/submission/:id — Full detail of one submission (admin only)
+app.get('/api/submission/:id', requireAdmin, (req, res) => {
+    const row = db.prepare('SELECT * FROM submissions WHERE id = ?').get(req.params.id);
+    if (!row) return res.status(404).json({ error: 'Not found' });
+    res.json({
+        ...row,
+        code: JSON.parse(row.code || '[]'),
+        test_results: JSON.parse(row.test_results || '[]'),
+        violation_log: JSON.parse(row.violation_log || '[]'),
+        grade: row.grade ? JSON.parse(row.grade) : null
+    });
+});
+
+// POST /api/my-submissions — Get submissions for the logged-in candidate
+app.post('/api/my-submissions', requireAuth, (req, res) => {
+    const email = req.user.email;
+    const rows = db.prepare(`
+        SELECT id, project_id, project_title, topic_name, day,
+               tests_passed, tests_total, auto_score, status, submitted_at, grade
+        FROM submissions WHERE email = ? ORDER BY submitted_at DESC
+    `).all(email);
+    const result = rows.map(r => ({
+        ...r,
+        grade: r.grade ? JSON.parse(r.grade) : null
+    }));
+    res.json(result);
+});
+
+// POST /api/grade — Grade a submission (admin only)
+app.post('/api/grade', requireAdmin, (req, res) => {
+    const { submissionId, scores, comments, trainerName } = req.body;
+    const row = db.prepare('SELECT auto_score FROM submissions WHERE id = ?').get(submissionId);
+    if (!row) return res.status(404).json({ error: 'Submission not found.' });
+
+    const s = scores || {};
+    const clamp = (v) => Math.min(10, Math.max(0, v || 0));
+    const correctness = clamp(s.correctness);
+    const codeQuality = clamp(s.codeQuality);
+    const logic = clamp(s.logic);
+    const style = clamp(s.style);
+    const manualScore = Math.round(((correctness + codeQuality + logic + style) / 4) * 10);
+    const autoScore = row.auto_score || 0;
+    const compositeScore = Math.round(autoScore * 0.20 + manualScore * 0.80);
+
+    const grade = {
+        scores: { correctness, codeQuality, logic, style },
+        manualScore,
+        autoScore,
+        compositeScore,
+        comments: comments || '',
+        trainerName: trainerName || req.user.name || 'Trainer',
+        gradedAt: new Date().toISOString()
+    };
+
+    db.prepare("UPDATE submissions SET status = 'graded', grade = ? WHERE id = ?")
+        .run(JSON.stringify(grade), submissionId);
+
+    res.json({ success: true, grade });
+});
+
+// ══════════════════════════════════════════════════════
+// COMPILE ENDPOINT
+// ══════════════════════════════════════════════════════
+app.post('/compile', compileRateLimit, async (req, res) => {
+    const { source_code: sourceCode, stdin = '', target = 'native' } = req.body;
+
+    if (!sourceCode || sourceCode.length > 100000) {
+        return res.status(400).json({
+            error: true, compile_output: 'Source code missing or too large (100KB max).', stdout: '', stderr: ''
+        });
+    }
+
+    const uid = `${Date.now()}_${process.pid}_${Math.random().toString(36).substr(2, 6)}`;
+    const tmpDir = os.tmpdir();
+
+    // RP2040 ARM cross-compile
+    if (target === 'rp2040') {
+        const srcPath = path.join(tmpDir, `rp2040_${uid}.c`);
+        const elfPath = path.join(tmpDir, `rp2040_${uid}.elf`);
+        const hexPath = path.join(tmpDir, `rp2040_${uid}.hex`);
+        await fs.promises.writeFile(srcPath, sourceCode);
+
+        const compileCmd = `arm-none-eabi-gcc -O2 -mcpu=cortex-m0plus -mthumb -ffreestanding -nostartfiles -Wl,-Ttext=0x10000000 "${srcPath}" -o "${elfPath}" && arm-none-eabi-objcopy -O ihex "${elfPath}" "${hexPath}"`;
+        try {
+            const { err, stdout, stderr } = await queuedExec(compileCmd);
+            if (err) {
+                return res.json({ error: true, compile_output: stderr || stdout || err.message, stdout: '', stderr: '' });
+            }
+            const hexData = await fs.promises.readFile(hexPath, 'utf8');
+            await Promise.all([srcPath, elfPath, hexPath].map(p => fs.promises.unlink(p).catch(() => { })));
+            return res.json({ error: false, hex: hexData, stdout: 'Compiled for RP2040.', stderr: '', compile_output: '' });
+        } catch (e) {
+            return res.json({ error: true, compile_output: 'Compilation failed: ' + e.message, stdout: '', stderr: '' });
+        }
+    }
+
+    // ── STM32 Register-Direct (QEMU Cortex-M3 semihosting) ──────────
+    if (target === 'stm32') {
+        const PLATFORM = '/app/platform';
+        const srcPath = path.join(tmpDir, `stm32_${uid}.c`);
+        const elfPath = path.join(tmpDir, `stm32_${uid}.elf`);
+        await fs.promises.writeFile(srcPath, sourceCode);
+        const compileCmd = [
+            'arm-none-eabi-gcc',
+            '-mcpu=cortex-m3 -mthumb -O0 -g0',
+            '-Wall -Wno-unused-function',
+            `-I${PLATFORM}`,
+            `"${PLATFORM}/startup_cm3.c"`,
+            `"${srcPath}"`,
+            `-T "${PLATFORM}/link_cm3.ld"`,
+            '--specs=rdimon.specs -lrdimon -lm',
+            `-o "${elfPath}"`
+        ].join(' ');
+        try {
+            const { err: ce, stderr: cs } = await queuedExec(compileCmd, { timeout: COMPILE_TIMEOUT });
+            if (ce) {
+                await fs.promises.unlink(srcPath).catch(() => { });
+                return res.json({ error: true, compile_output: cs || ce.message, stdout: '', stderr: '' });
+            }
+            // Run under QEMU with semihosting
+            const runResult = await compileQueue.enqueue(() => new Promise(resolve => {
+                const qemuCmd = [
+                    'qemu-system-arm',
+                    '-machine lm3s6965evb',
+                    `-kernel "${elfPath}"`,
+                    '-nographic',
+                    '-semihosting-config enable=on,target=native',
+                    '-monitor none',
+                    '-serial none'
+                ].join(' ');
+                const child = exec(qemuCmd, { timeout: 6000, maxBuffer: MAX_OUTPUT_BUFFER },
+                    (err, stdout, stderr) => {
+                        Promise.all([srcPath, elfPath].map(p => fs.promises.unlink(p).catch(() => { })));
+                        resolve({
+                            error: false,
+                            stdout: stdout || '',
+                            stderr: err && err.killed ? 'Program timed out (6s limit).' : (stderr || ''),
+                            compile_output: ''
+                        });
+                    });
+            }));
+            return res.json(runResult);
+        } catch (e) {
+            await Promise.all([srcPath, elfPath].map(p => fs.promises.unlink(p).catch(() => { })));
+            return res.status(500).json({ error: true, stderr: 'STM32 compile error: ' + e.message });
+        }
+    }
+
+    // ── STM32 HAL Stub (native gcc + HAL stubs) ─────────────────────
+    if (target === 'stm32_hal') {
+        const PLATFORM = '/app/platform';
+        const srcPath = path.join(tmpDir, `hal_${uid}.c`);
+        const exePath = path.join(tmpDir, `hal_${uid}`);
+        await fs.promises.writeFile(srcPath, sourceCode);
+        const compileCmd = [
+            'gcc -O0 -Wall -Wno-unused-function',
+            `-I${PLATFORM}`,
+            `"${srcPath}"`,
+            `"${PLATFORM}/stm32_hal_stub.c"`,
+            '-lm',
+            `-o "${exePath}"`
+        ].join(' ');
+        try {
+            const { err: ce, stderr: cs } = await queuedExec(compileCmd, { timeout: COMPILE_TIMEOUT });
+            if (ce) {
+                await fs.promises.unlink(srcPath).catch(() => { });
+                return res.json({ error: true, compile_output: cs || ce.message, stdout: '', stderr: '' });
+            }
+            const runResult = await compileQueue.enqueue(() => new Promise(resolve => {
+                const child = exec(`"${exePath}"`, { timeout: RUN_TIMEOUT, maxBuffer: MAX_OUTPUT_BUFFER },
+                    (err, stdout, stderr) => {
+                        Promise.all([srcPath, exePath].map(p => fs.promises.unlink(p).catch(() => { })));
+                        resolve({
+                            error: false,
+                            stdout: stdout || '',
+                            stderr: err && err.killed ? 'Program timed out (5s).' : (stderr || ''),
+                            compile_output: ''
+                        });
+                    });
+                if (child.stdin) { child.stdin.write(String(stdin)); child.stdin.end(); }
+            }));
+            return res.json(runResult);
+        } catch (e) {
+            await Promise.all([srcPath, exePath].map(p => fs.promises.unlink(p).catch(() => { })));
+            return res.status(500).json({ error: true, stderr: 'HAL compile error: ' + e.message });
+        }
+    }
+
+    // ── FreeRTOS POSIX (native gcc + FreeRTOS-Kernel POSIX port) ────
+    if (target === 'freertos') {
+        const PLATFORM = '/app/platform';
+        const FRTOS = '/opt/freertos-kernel';
+        const srcPath = path.join(tmpDir, `rtos_${uid}.c`);
+        const exePath = path.join(tmpDir, `rtos_${uid}`);
+        await fs.promises.writeFile(srcPath, sourceCode);
+        const frtosSources = [
+            `${FRTOS}/tasks.c`,
+            `${FRTOS}/queue.c`,
+            `${FRTOS}/list.c`,
+            `${FRTOS}/timers.c`,
+            `${FRTOS}/event_groups.c`,
+            `${FRTOS}/stream_buffer.c`,
+            `${FRTOS}/portable/GCC/POSIX/port.c`,
+            `${FRTOS}/portable/MemMang/heap_3.c`
+        ].map(p => `"${p}"`).join(' ');
+        const compileCmd = [
+            'gcc -O0 -Wall -Wno-unused-function -Wno-format',
+            `-I${FRTOS}/include`,
+            `-I${FRTOS}/portable/GCC/POSIX`,
+            `-I${PLATFORM}`,
+            `"${srcPath}"`,
+            frtosSources,
+            '-lpthread -lm',
+            `-o "${exePath}"`
+        ].join(' ');
+        try {
+            const { err: ce, stderr: cs } = await queuedExec(compileCmd, { timeout: COMPILE_TIMEOUT });
+            if (ce) {
+                await fs.promises.unlink(srcPath).catch(() => { });
+                return res.json({ error: true, compile_output: cs || ce.message, stdout: '', stderr: '' });
+            }
+            const runResult = await compileQueue.enqueue(() => new Promise(resolve => {
+                const child = exec(`"${exePath}"`, { timeout: 8000, maxBuffer: MAX_OUTPUT_BUFFER },
+                    (err, stdout, stderr) => {
+                        Promise.all([srcPath, exePath].map(p => fs.promises.unlink(p).catch(() => { })));
+                        resolve({
+                            error: false,
+                            stdout: stdout || '',
+                            stderr: err && err.killed ? 'FreeRTOS program timed out (8s).' : (stderr || ''),
+                            compile_output: ''
+                        });
+                    });
+                if (child.stdin) { child.stdin.write(String(stdin)); child.stdin.end(); }
+            }));
+            return res.json(runResult);
+        } catch (e) {
+            await Promise.all([srcPath, exePath].map(p => fs.promises.unlink(p).catch(() => { })));
+            return res.status(500).json({ error: true, stderr: 'FreeRTOS compile error: ' + e.message });
+        }
+    }
+
+
+    // Detect C++ vs C
+    const isCpp = /^\s*#include\s*<(iostream|fstream|sstream|vector|string|map|set|list|queue|stack|deque|algorithm|functional|numeric|memory|utility|tuple|array|bitset|regex|chrono|thread|mutex|cmath|cstdlib|cstring|cstdio|climits|cfloat|cassert|cctype|ctime)>/m.test(sourceCode)
+        || /\b(cout|cin|cerr|endl|std::|(using\s+namespace\s+std))\b/.test(sourceCode)
+        || /\b(class\s+\w+|template\s*<|nullptr|auto\s+\w+\s*=|new\s+\w+|delete\s+|virtual\s+|override|public:|private:|protected:)\b/.test(sourceCode);
+
+    const ext = isCpp ? '.cpp' : '.c';
+    const compiler = isCpp ? 'g++' : 'gcc';
+
+    // Detect POSIX / Linux System Programming headers → add -lpthread -lrt
+    const isPosix = /<(pthread|semaphore|sys\/shm|sys\/wait|sys\/ipc|sys\/mman|sys\/msg|mqueue|signal|unistd)\.h>/.test(sourceCode);
+    const posixFlags = isPosix ? '-lpthread -lrt' : '';
+    const flags = isCpp
+        ? `-std=c++17 -Wall -lm -lstdc++ ${posixFlags}`
+        : `-std=c11 -Wall -lm ${posixFlags}`;
+
+    const srcPath = path.join(tmpDir, `prog_${uid}${ext}`);
+    const exeName = os.platform() === 'win32' ? `prog_${uid}.exe` : `prog_${uid}`;
+    const exePath = path.join(tmpDir, exeName);
+
+    await fs.promises.writeFile(srcPath, sourceCode);
+
+    try {
+        // Step 1: Compile
+        const { err: compileErr, stderr: compErr, stdout: compOut } = await queuedExec(
+            `${compiler} "${srcPath}" -o "${exePath}" ${flags}`,
+            { timeout: COMPILE_TIMEOUT }
+        );
+
+        if (compileErr) {
+            await Promise.all([srcPath, exePath].map(p => fs.promises.unlink(p).catch(() => { })));
+            return res.json({
+                error: true,
+                compile_output: compErr || compOut || compileErr.message || 'Unknown compilation error',
+                stdout: '', stderr: ''
+            });
+        }
+
+        // Step 2: Run
+        const runResult = await compileQueue.enqueue(() => new Promise((resolve) => {
+            const child = exec(`"${exePath}"`, {
+                timeout: RUN_TIMEOUT,
+                maxBuffer: MAX_OUTPUT_BUFFER
+            }, (runErr, runStdout, runStderr) => {
+                fs.promises.unlink(srcPath).catch(() => { });
+                fs.promises.unlink(exePath).catch(() => { });
+                resolve({
+                    error: false,
+                    stdout: runStdout || '',
+                    stderr: runStderr || (runErr && runErr.killed ? 'Program timed out (5s limit).' : ''),
+                    compile_output: ''
+                });
+            });
+            if (child.stdin) { child.stdin.write(String(stdin)); child.stdin.end(); }
+        }));
+
+        return res.json(runResult);
+
+    } catch (e) {
+        await Promise.all([srcPath, exePath].map(p => fs.promises.unlink(p).catch(() => { })));
+        return res.status(500).json({ error: true, stderr: 'Server Error: ' + e.message });
+    }
+});
+
+// ══════════════════════════════════════════════════════
+// STATIC FILE SERVER (cached in memory)
+// ══════════════════════════════════════════════════════
+const staticCache = {};
+
+function getTopicVisibility() {
+    try {
+        const topicsConfigPath = path.join(__dirname, 'topics.json');
+        if (fs.existsSync(topicsConfigPath)) {
+            return JSON.parse(fs.readFileSync(topicsConfigPath, 'utf8'));
+        }
+    } catch (e) { /* ignore */ }
+    return {};
+}
+
+app.use((req, res, next) => {
+    if (req.path.startsWith('/api/') || req.path === '/compile' || req.path === '/health') {
+        return next();
+    }
+
+    const isHtml = req.path === '/' || req.path.endsWith('.html');
+    let filePath = path.join(__dirname, req.path === '/' ? 'index.html' : req.path);
+
+    // For non-HTML files, use cache as before
+    if (!isHtml && staticCache[filePath]) {
+        const { data, contentType } = staticCache[filePath];
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Cache-Control', 'public, max-age=300');
+        return res.send(data);
+    }
+
+    const extname = path.extname(filePath).toLowerCase();
+    const mimeTypes = {
+        '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css',
+        '.json': 'application/json', '.png': 'image/png', '.svg': 'image/svg+xml',
+        '.woff2': 'font/woff2', '.woff': 'font/woff'
+    };
+    const contentType = mimeTypes[extname] || 'application/octet-stream';
+
+    fs.readFile(filePath, (err, data) => {
+        if (err) {
+            if (req.path !== '/') {
+                return res.status(404).send('Not found');
+            }
+            filePath = path.join(__dirname, 'index.html');
+            return fs.readFile(filePath, (e2, d2) => {
+                if (e2) return res.status(404).send('Not found');
+                // Inject topicVisibility so frontend has it instantly (no race condition)
+                const topicVisibility = getTopicVisibility();
+                const injectedScript = `<script>window.__INITIAL_TOPIC_VISIBILITY__ = ${JSON.stringify(topicVisibility)};</script>`;
+                const html = d2.toString().replace('</head>', injectedScript + '</head>');
+                res.setHeader('Content-Type', 'text/html');
+                res.setHeader('Cache-Control', 'no-cache');
+                res.send(html);
+            });
+        }
+
+        if (isHtml) {
+            // Inject topicVisibility so frontend has it instantly (no race condition)
+            const topicVisibility = getTopicVisibility();
+            const injectedScript = `<script>window.__INITIAL_TOPIC_VISIBILITY__ = ${JSON.stringify(topicVisibility)};</script>`;
+            const html = data.toString().replace('</head>', injectedScript + '</head>');
+            res.setHeader('Content-Type', 'text/html');
+            res.setHeader('Cache-Control', 'no-cache');
+            return res.send(html);
+        }
+
+        if (data.length < 5 * 1024 * 1024) staticCache[filePath] = { data, contentType };
+        res.setHeader('Content-Type', contentType);
+        res.setHeader('Cache-Control', 'public, max-age=300');
+        res.send(data);
+    });
+});
+
+// ══════════════════════════════════════════════════════
+// HACKATHON API (FIXED - SINGLE DB, NO DUPLICATION)
+// ══════════════════════════════════════════════════════
+
+// Initialize hackathon tables in SAME DB
+function initHackathonTables() {
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS hackathon_sessions (
+            id TEXT PRIMARY KEY,
+            title TEXT,
+            topicId TEXT,
+            duration INTEGER,
+            status TEXT DEFAULT 'pending',
+            problems TEXT,
+            startTime TEXT,
+            endTime TEXT,
+            createdAt TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS hackathon_submissions (
+            id TEXT PRIMARY KEY,
+            sessionId TEXT,
+            candidateName TEXT,
+            email TEXT,
+            projectId TEXT,
+            projectTitle TEXT,
+            topicId TEXT,
+            topicName TEXT,
+            code TEXT,
+            testResults TEXT,
+            testsPassed INTEGER DEFAULT 0,
+            testsTotal INTEGER DEFAULT 0,
+            autoScore REAL DEFAULT 0,
+            solveTime INTEGER DEFAULT 0,
+            attempts INTEGER DEFAULT 1,
+            hackathonGrade TEXT,
+            submittedAt TEXT DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
+}
+
+// Initialize once
+initHackathonTables();
+
+
+// ================= START SESSION =================
+app.post('/api/hackathon/start', requireAdmin, (req, res) => {
+    try {
+        const { title, duration, topicId, problems } = req.body;
+
+        const id = 'hack_' + Date.now();
+        const startTime = new Date().toISOString();
+        const endTime = new Date(Date.now() + duration * 60000).toISOString();
+
+        const problemsJson = JSON.stringify(problems || []);
+
+        db.prepare(`
+            INSERT INTO hackathon_sessions
+            (id, title, topicId, duration, status, problems, startTime, endTime)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+            id,
+            title,
+            topicId,
+            duration,
+            'active',
+            problemsJson,
+            startTime,
+            endTime
+        );
+
+        const session = {
+            id,
+            title,
+            topicId,
+            duration,
+            status: 'active',
+            problems: problems || [],
+            startTime,
+            endTime
+        };
+
+        res.json({ success: true, sessionId: id, session });
+
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
+// ================= END SESSION =================
+app.post('/api/hackathon/end', requireAdmin, (req, res) => {
+    try {
+        const { sessionId } = req.body;
+        if (!sessionId) return res.status(400).json({ error: 'sessionId required.' });
+
+        const row = db.prepare(`SELECT id FROM hackathon_sessions WHERE id = ?`).get(sessionId);
+        if (!row) return res.status(404).json({ error: 'Session not found.' });
+
+        db.prepare(`UPDATE hackathon_sessions SET status = 'ended' WHERE id = ?`).run(sessionId);
+        res.json({ success: true });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
+// ================= GET SESSION =================
+app.get('/api/hackathon/session', (req, res) => {
+    try {
+        const row = db.prepare(`
+            SELECT * FROM hackathon_sessions
+            WHERE status='active'
+            ORDER BY createdAt DESC LIMIT 1
+        `).get();
+
+        if (!row) return res.json(null);
+
+        res.json({
+            ...row,
+            problems: JSON.parse(row.problems || '[]')
+        });
+
+    } catch {
+        res.json(null);
+    }
+});
+
+
+// ================= SUBMIT =================
+app.post('/api/hackathon/submit', requireAuth, (req, res) => {
+    try {
+        const {
+            sessionId,
+            projectId,
+            projectTitle,
+            topicId,
+            topicName,
+            code,
+            testResults,
+            testsPassed,
+            testsTotal,
+            autoScore,
+            solveTime,
+            attempts
+        } = req.body;
+
+        const id = 'hsub_' + Date.now();
+
+        db.prepare(`
+            INSERT INTO hackathon_submissions
+            (id, sessionId, candidateName, email, projectId, projectTitle,
+             topicId, topicName, code, testResults,
+             testsPassed, testsTotal, autoScore, solveTime, attempts)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+            id,
+            sessionId || '',
+            req.user.name,
+            req.user.email,
+            projectId,
+            projectTitle,
+            topicId,
+            topicName,
+            JSON.stringify(code || []),
+            JSON.stringify(testResults || []),
+            testsPassed || 0,
+            testsTotal || 0,
+            autoScore || 0,
+            solveTime || 0,
+            attempts || 1
+        );
+
+        res.json({ success: true, submissionId: id });
+
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
+// ================= ADMIN SUBMISSIONS =================
+app.get('/api/hackathon/submissions', requireAdmin, (req, res) => {
+    try {
+        const rows = db.prepare(`
+            SELECT * FROM hackathon_submissions
+            ORDER BY submittedAt DESC
+        `).all();
+
+        res.json(rows.map(r => ({
+            ...r,
+            code: JSON.parse(r.code || '[]'),
+            testResults: JSON.parse(r.testResults || '[]'),
+            hackathonGrade: r.hackathonGrade ? JSON.parse(r.hackathonGrade) : null
+        })));
+
+    } catch {
+        res.json([]);
+    }
+});
+
+
+// ================= ADMIN GRADE =================
+app.post('/api/hackathon/grade', requireAdmin, (req, res) => {
+    try {
+        const { submissionId, manualScores, comments, compositeScore, trainerName } = req.body;
+
+        const sub = db.prepare(`
+            SELECT autoScore FROM hackathon_submissions WHERE id=?
+        `).get(submissionId);
+
+        if (!sub) return res.status(404).json({ error: 'Submission not found.' });
+
+        // Use compositeScore from frontend if provided (it applies the full rubric including time bonus,
+        // attempt penalty, etc. which the frontend calculates). Fall back to a simple calculation.
+        let finalScore = compositeScore;
+        if (finalScore == null) {
+            const quality = (manualScores?.codeQuality || 0);
+            const approach = (manualScores?.approach || 0);
+            const manualScore = Math.round((quality + approach) / 2 * 10);
+            finalScore = Math.round(sub.autoScore * 0.5 + manualScore * 0.5);
+        }
+        finalScore = Math.max(0, Math.min(100, Math.round(finalScore)));
+
+        const grade = {
+            manualScores,
+            autoScore: sub.autoScore,
+            compositeScore: finalScore,
+            comments: comments || '',
+            trainerName: trainerName || req.user?.name || 'Trainer',
+            gradedAt: new Date().toISOString()
+        };
+
+        db.prepare(`
+            UPDATE hackathon_submissions
+            SET hackathonGrade=?
+            WHERE id=?
+        `).run(JSON.stringify(grade), submissionId);
+
+        res.json({ success: true });
+
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
+// ================= LEADERBOARD (FIXED) =================
+app.get('/api/hackathon/leaderboard', (req, res) => {
+    try {
+        const rows = db.prepare(`
+            SELECT * FROM hackathon_submissions
+        `).all();
+
+        const users = {};
+
+        rows.forEach(r => {
+            const grade = r.hackathonGrade
+                ? JSON.parse(r.hackathonGrade)
+                : null;
+
+            const score = grade?.compositeScore || r.autoScore;
+
+            if (!users[r.email]) {
+                users[r.email] = {
+                    name: r.candidateName,
+                    problems: {},
+                    totalScore: 0,
+                    totalTime: 0,
+                    attempts: 0
+                };
+            }
+
+            const user = users[r.email];
+
+            // BEST submission per problem
+            if (
+                !user.problems[r.projectId] ||
+                user.problems[r.projectId].score < score
+            ) {
+                user.problems[r.projectId] = {
+                    score,
+                    time: r.solveTime || 0,
+                    attempts: r.attempts || 1
+                };
+            }
+        });
+
+        Object.values(users).forEach(u => {
+            Object.values(u.problems).forEach(p => {
+                u.totalScore += p.score;
+                u.totalTime += p.time;
+                u.attempts += p.attempts;
+            });
+        });
+
+        const leaderboard = Object.values(users)
+            .sort((a, b) =>
+                b.totalScore - a.totalScore ||
+                a.totalTime - b.totalTime ||
+                a.attempts - b.attempts
+            )
+            .map((u, i) => ({
+                rank: i + 1,
+                name: u.name,
+                score: u.totalScore,
+                time: u.totalTime
+            }));
+
+        res.json(leaderboard);
+
+    } catch {
+        res.json([]);
+    }
+});
+
+// START THE SERVER
+
+// ══════════════════════════════════════════════════════
+// WEEKLY REPORT
+// ══════════════════════════════════════════════════════
+
+async function buildWeeklyReportHTML(weekLabel) {
+    // Count how many distinct VISTEON_C projects exist in progress (ever attempted),
+    // so the denominator reflects the real assignment set rather than a hardcoded 20.
+    const visteonTotal = (() => {
+        try {
+            const r = db.prepare(`SELECT COUNT(DISTINCT project_id) as cnt FROM progress WHERE project_id LIKE 'VCA-%'`).get();
+            return Math.max(r?.cnt || 20, 20); // at least 20 (the published assignment count)
+        } catch { return 20; }
+    })();
+
+    const rows = db.prepare(`
+        SELECT u.name, u.email,
+               COUNT(DISTINCT CASE WHEN p.solved = 1 AND p.project_id LIKE 'VCA-%' THEN p.project_id END) as solved_count,
+               COUNT(DISTINCT s.id) as submission_count,
+               ROUND(AVG(CASE WHEN s.auto_score IS NOT NULL THEN s.auto_score END), 1) as avg_score,
+               SUM(COALESCE(s.violation_count, 0)) as total_violations
+        FROM users u
+        LEFT JOIN progress p ON p.email = u.email
+        LEFT JOIN submissions s ON s.email = u.email
+        WHERE u.role = 'candidate'
+        GROUP BY u.email
+        ORDER BY solved_count DESC, avg_score DESC
+    `).all();
+
+    const date = new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+
+    const tableRows = rows.map((r, i) => `
+        <tr style="background:${i % 2 === 0 ? '#f9fafb' : '#ffffff'}">
+            <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;font-weight:600;color:#374151">${i + 1}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb">${r.name || '—'}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;color:#6b7280">${r.email}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;color:#2563eb">${r.solved_count || 0} / ${visteonTotal}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;text-align:center">${r.submission_count || 0}</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;text-align:center;font-weight:700;color:${(r.avg_score || 0) >= 70 ? '#16a34a' : '#dc2626'}">${r.avg_score || '—'}%</td>
+            <td style="padding:10px 14px;border-bottom:1px solid #e5e7eb;text-align:center;color:${(r.total_violations || 0) > 5 ? '#dc2626' : '#374151'}">${r.total_violations || 0}</td>
+        </tr>`).join('');
+
+    return `
+    <!DOCTYPE html>
+    <html>
+    <head><meta charset="utf-8"></head>
+    <body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,sans-serif">
+      <div style="max-width:800px;margin:30px auto;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.08)">
+        <!-- Header -->
+        <div style="background:linear-gradient(135deg,#1e3a8a,#2563eb);padding:32px 40px">
+          <h1 style="margin:0;color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-0.5px">📊 Weekly Progress Report</h1>
+          <p style="margin:6px 0 0;color:#bfdbfe;font-size:14px">${weekLabel} &nbsp;·&nbsp; Generated: ${date}</p>
+        </div>
+        <!-- Stats Bar -->
+        <div style="display:flex;background:#eff6ff;padding:20px 40px;gap:40px;border-bottom:1px solid #dbeafe">
+          <div><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px">Total Candidates</div><div style="font-size:28px;font-weight:800;color:#1e3a8a">${rows.length}</div></div>
+          <div><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px">Avg Score</div><div style="font-size:28px;font-weight:800;color:#16a34a">${rows.length ? Math.round(rows.reduce((a,r)=>a+(r.avg_score||0),0)/rows.length) : 0}%</div></div>
+          <div><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px">Total Submissions</div><div style="font-size:28px;font-weight:800;color:#2563eb">${rows.reduce((a,r)=>a+(r.submission_count||0),0)}</div></div>
+          <div><div style="font-size:11px;color:#6b7280;text-transform:uppercase;letter-spacing:1px">Total Violations</div><div style="font-size:28px;font-weight:800;color:#dc2626">${rows.reduce((a,r)=>a+(r.total_violations||0),0)}</div></div>
+        </div>
+        <!-- Table -->
+        <div style="padding:24px 40px">
+          <table style="width:100%;border-collapse:collapse;font-size:13px">
+            <thead>
+              <tr style="background:#1e3a8a">
+                <th style="padding:12px 14px;color:#fff;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.5px">#</th>
+                <th style="padding:12px 14px;color:#fff;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.5px">Name</th>
+                <th style="padding:12px 14px;color:#fff;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:0.5px">Email</th>
+                <th style="padding:12px 14px;color:#fff;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:0.5px">Solved</th>
+                <th style="padding:12px 14px;color:#fff;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:0.5px">Submissions</th>
+                <th style="padding:12px 14px;color:#fff;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:0.5px">Avg Score</th>
+                <th style="padding:12px 14px;color:#fff;text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:0.5px">Violations</th>
+              </tr>
+            </thead>
+            <tbody>${tableRows || '<tr><td colspan="7" style="padding:20px;text-align:center;color:#9ca3af">No candidate data yet</td></tr>'}</tbody>
+          </table>
+        </div>
+        <!-- Footer -->
+        <div style="padding:20px 40px;background:#f9fafb;border-top:1px solid #e5e7eb;text-align:center">
+          <p style="margin:0;font-size:11px;color:#9ca3af">Visteon × SkillLync VirtualLab &nbsp;·&nbsp; Auto-generated every Friday at 6:00 PM IST</p>
+        </div>
+      </div>
+    </body>
+    </html>`;
+}
+
+async function sendWeeklyReport(weekLabel, triggeredBy) {
+    const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
+    if (!adminEmails.length) {
+        console.log('[WeeklyReport] No ADMIN_EMAILS set, skipping.');
+        return { success: false, error: 'No admin emails configured' };
+    }
+    try {
+        const html = await buildWeeklyReportHTML(weekLabel);
+        await transporter.sendMail({
+            from: process.env.SMTP_FROM || '"VirtualLab" <noreply@virtuallab.io>',
+            to: adminEmails.join(','),
+            subject: `📊 VirtualLab Weekly Report — ${weekLabel}`,
+            html
+        });
+        console.log(`[WeeklyReport] Sent to ${adminEmails.join(', ')} (triggered by: ${triggeredBy || 'scheduler'})`);
+        return { success: true, sentTo: adminEmails };
+    } catch (err) {
+        console.error('[WeeklyReport] Failed:', err.message);
+        return { success: false, error: err.message };
+    }
+}
+
+// ── Friday 6 PM IST scheduler (only on worker 1 to avoid duplicate emails) ──
+if (WORKER_ID === 1) {
+    setInterval(() => {
+        const now = new Date();
+        // IST = UTC + 5:30
+        const istOffset = 5.5 * 60 * 60 * 1000;
+        const ist = new Date(now.getTime() + istOffset);
+        const isFriday = ist.getUTCDay() === 5;
+        const isReportTime = ist.getUTCHours() === 18 && ist.getUTCMinutes() === 0;
+        if (isFriday && isReportTime) {
+            const weekLabel = `Week ending ${ist.toISOString().slice(0, 10)}`;
+            sendWeeklyReport(weekLabel, 'auto-scheduler');
+        }
+    }, 60 * 1000); // check every minute
+    console.log('[Worker 1] Friday weekly report scheduler active');
+}
+
+// POST /api/admin/send-weekly-report — manual trigger from admin UI
+app.post('/api/admin/send-weekly-report', requireAdmin, async (req, res) => {
+    const weekLabel = req.body.weekLabel || `Week ending ${new Date().toISOString().slice(0, 10)}`;
+    const result = await sendWeeklyReport(weekLabel, req.user?.email || 'admin');
+    res.json(result);
+});
+
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[Worker ${WORKER_ID}, PID ${process.pid}] Express app listening on port ${PORT}`);
+});
