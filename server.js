@@ -1275,6 +1275,38 @@ app.post('/api/hackathon/submit', requireAuth, (req, res) => {
 });
 
 
+// ================= CANDIDATE — MY SUBMISSIONS =================
+app.get('/api/hackathon/my-submissions', requireAuth, (req, res) => {
+    try {
+        const { sessionId } = req.query;
+        let rows;
+        if (sessionId) {
+            rows = db.prepare(`
+                SELECT id, sessionId, projectId, projectTitle, testsPassed, testsTotal,
+                       autoScore, solveTime, attempts, hackathonGrade, submittedAt
+                FROM hackathon_submissions
+                WHERE email = ? AND sessionId = ?
+                ORDER BY submittedAt DESC
+            `).all(req.user.email, sessionId);
+        } else {
+            rows = db.prepare(`
+                SELECT id, sessionId, projectId, projectTitle, testsPassed, testsTotal,
+                       autoScore, solveTime, attempts, hackathonGrade, submittedAt
+                FROM hackathon_submissions
+                WHERE email = ?
+                ORDER BY submittedAt DESC
+            `).all(req.user.email);
+        }
+        res.json(rows.map(r => ({
+            ...r,
+            hackathonGrade: r.hackathonGrade ? JSON.parse(r.hackathonGrade) : null
+        })));
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+
 // ================= ADMIN SUBMISSIONS =================
 app.get('/api/hackathon/submissions', requireAdmin, (req, res) => {
     try {
@@ -1299,41 +1331,47 @@ app.get('/api/hackathon/submissions', requireAdmin, (req, res) => {
 // ================= ADMIN GRADE =================
 app.post('/api/hackathon/grade', requireAdmin, (req, res) => {
     try {
-        const { submissionId, manualScores, comments, compositeScore, trainerName } = req.body;
+        const { submissionId, rubricScores, totalScore, comments, trainerName } = req.body;
 
-        const sub = db.prepare(`
-            SELECT autoScore FROM hackathon_submissions WHERE id=?
-        `).get(submissionId);
-
+        const sub = db.prepare(`SELECT autoScore, attempts, solveTime FROM hackathon_submissions WHERE id=?`).get(submissionId);
         if (!sub) return res.status(404).json({ error: 'Submission not found.' });
 
-        // Use compositeScore from frontend if provided (it applies the full rubric including time bonus,
-        // attempt penalty, etc. which the frontend calculates). Fall back to a simple calculation.
-        let finalScore = compositeScore;
-        if (finalScore == null) {
-            const quality = (manualScores?.codeQuality || 0);
-            const approach = (manualScores?.approach || 0);
-            const manualScore = Math.round((quality + approach) / 2 * 10);
-            finalScore = Math.round(sub.autoScore * 0.5 + manualScore * 0.5);
-        }
-        finalScore = Math.max(0, Math.min(100, Math.round(finalScore)));
+        // Validate & clamp each criterion against its defined max
+        const CRITERIA = [
+            { id: 'correctness',           max: 30 },
+            { id: 'code_quality',          max: 20 },
+            { id: 'problem_understanding', max: 15 },
+            { id: 'innovation',            max: 15 },
+            { id: 'documentation',         max: 10 },
+            { id: 'testing',               max: 10 },
+        ];
+        const validatedScores = {};
+        let computedTotal = 0;
+        CRITERIA.forEach(c => {
+            const raw = parseFloat((rubricScores || {})[c.id]);
+            const clamped = isNaN(raw) ? 0 : Math.max(0, Math.min(c.max, raw));
+            validatedScores[c.id] = clamped;
+            computedTotal += clamped;
+        });
+
+        // Prefer the frontend totalScore (already validated there), else use sum
+        const finalScore = Math.max(0, Math.min(100, Math.round(
+            typeof totalScore === 'number' ? totalScore : computedTotal
+        )));
 
         const grade = {
-            manualScores,
-            autoScore: sub.autoScore,
-            compositeScore: finalScore,
-            comments: comments || '',
-            trainerName: trainerName || req.user?.name || 'Trainer',
-            gradedAt: new Date().toISOString()
+            rubricScores: validatedScores,
+            totalScore:   finalScore,
+            autoScore:    sub.autoScore,
+            comments:     comments || '',
+            trainerName:  trainerName || req.user?.name || 'Trainer',
+            gradedAt:     new Date().toISOString()
         };
 
-        db.prepare(`
-            UPDATE hackathon_submissions
-            SET hackathonGrade=?
-            WHERE id=?
-        `).run(JSON.stringify(grade), submissionId);
+        db.prepare(`UPDATE hackathon_submissions SET hackathonGrade=? WHERE id=?`)
+            .run(JSON.stringify(grade), submissionId);
 
-        res.json({ success: true });
+        res.json({ success: true, grade });
 
     } catch (e) {
         res.status(500).json({ error: e.message });
@@ -1341,71 +1379,113 @@ app.post('/api/hackathon/grade', requireAdmin, (req, res) => {
 });
 
 
-// ================= LEADERBOARD (FIXED) =================
+// ================= LEADERBOARD =================
 app.get('/api/hackathon/leaderboard', (req, res) => {
     try {
-        const rows = db.prepare(`
-            SELECT * FROM hackathon_submissions
-        `).all();
+        // Optional: filter by sessionId if provided
+        const { sessionId } = req.query;
 
+        let rows;
+        if (sessionId) {
+            rows = db.prepare(`SELECT * FROM hackathon_submissions WHERE sessionId = ? ORDER BY submittedAt ASC`).all(sessionId);
+        } else {
+            // Get submissions from the most recent session if no sessionId provided
+            const latestSession = db.prepare(`SELECT id FROM hackathon_sessions ORDER BY createdAt DESC LIMIT 1`).get();
+            if (latestSession) {
+                rows = db.prepare(`SELECT * FROM hackathon_submissions WHERE sessionId = ? ORDER BY submittedAt ASC`).all(latestSession.id);
+            } else {
+                rows = db.prepare(`SELECT * FROM hackathon_submissions ORDER BY submittedAt ASC`).all();
+            }
+        }
+
+        // Get total problems from the session
+        let totalProblems = 0;
+        if (rows.length > 0) {
+            const session = db.prepare(`SELECT problems FROM hackathon_sessions WHERE id = ?`).get(rows[0].sessionId);
+            if (session) {
+                try { totalProblems = JSON.parse(session.problems || '[]').length; } catch { totalProblems = 0; }
+            }
+        }
+
+        // Aggregate per user — keep BEST submission per problem
         const users = {};
 
         rows.forEach(r => {
-            const grade = r.hackathonGrade
-                ? JSON.parse(r.hackathonGrade)
-                : null;
-
-            const score = grade?.compositeScore || r.autoScore;
+            const grade = r.hackathonGrade ? JSON.parse(r.hackathonGrade) : null;
+            // Use graded totalScore, then compositeScore, then autoScore
+            const score = grade?.totalScore ?? grade?.compositeScore ?? r.autoScore ?? 0;
+            const qualityScore = grade?.rubricScores
+                ? Math.round(((grade.rubricScores.code_quality || 0) / 20) * 10)
+                : (grade?.manualScores?.codeQuality ?? null);
 
             if (!users[r.email]) {
                 users[r.email] = {
                     name: r.candidateName,
+                    email: r.email,
                     problems: {},
                     totalScore: 0,
                     totalTime: 0,
-                    attempts: 0
+                    totalAttempts: 0,
+                    totalAutoScore: 0,
+                    probCount: 0,
+                    qualityScores: [],
+                    isGraded: false
                 };
             }
 
-            const user = users[r.email];
+            const u = users[r.email];
 
-            // BEST submission per problem
-            if (
-                !user.problems[r.projectId] ||
-                user.problems[r.projectId].score < score
-            ) {
-                user.problems[r.projectId] = {
+            // Keep best score per problem
+            if (!u.problems[r.projectId] || u.problems[r.projectId].score < score) {
+                u.problems[r.projectId] = {
                     score,
+                    autoScore: r.autoScore || 0,
                     time: r.solveTime || 0,
-                    attempts: r.attempts || 1
+                    attempts: r.attempts || 1,
+                    passed: (r.autoScore || 0) >= 100,
+                    graded: !!grade,
+                    qualityScore
                 };
             }
         });
 
+        // Compute totals per user
         Object.values(users).forEach(u => {
-            Object.values(u.problems).forEach(p => {
-                u.totalScore += p.score;
-                u.totalTime += p.time;
-                u.attempts += p.attempts;
-            });
+            const probs = Object.values(u.problems);
+            u.totalScore    = probs.reduce((a, p) => a + p.score, 0);
+            u.totalTime     = probs.reduce((a, p) => a + p.time, 0);
+            u.totalAttempts = probs.reduce((a, p) => a + p.attempts, 0);
+            u.totalAutoScore = probs.reduce((a, p) => a + p.autoScore, 0);
+            u.probCount     = probs.length;
+            u.solved        = probs.filter(p => p.passed).length;
+            u.isGraded      = probs.some(p => p.graded);
+            const qs = probs.map(p => p.qualityScore).filter(v => v != null);
+            u.avgQuality    = qs.length ? Math.round(qs.reduce((a, b) => a + b, 0) / qs.length) : null;
         });
 
         const leaderboard = Object.values(users)
             .sort((a, b) =>
-                b.totalScore - a.totalScore ||
-                a.totalTime - b.totalTime ||
-                a.attempts - b.attempts
+                b.totalScore    - a.totalScore   ||
+                a.totalTime     - b.totalTime    ||
+                a.totalAttempts - b.totalAttempts
             )
             .map((u, i) => ({
-                rank: i + 1,
-                name: u.name,
-                score: u.totalScore,
-                time: u.totalTime
+                rank:         i + 1,
+                name:         u.name,
+                email:        u.email,
+                solved:       u.solved,
+                total:        totalProblems || u.probCount,
+                correctness:  u.probCount ? Math.round(u.totalAutoScore / u.probCount) : 0,
+                avgTime:      u.probCount ? Math.round(u.totalTime / u.probCount) : 0,
+                qualityScore: u.avgQuality,
+                finalScore:   Math.round(u.totalScore),
+                status:       u.isGraded ? 'graded' : 'pending'
             }));
 
         res.json(leaderboard);
 
-    } catch {
+    } catch (e) {
+        console.error('[Leaderboard]', e.message);
         res.json([]);
     }
 });
@@ -1536,98 +1616,4 @@ app.post('/api/admin/send-weekly-report', requireAdmin, async (req, res) => {
 
 app.listen(PORT, '0.0.0.0', () => {
     console.log(`[Worker ${WORKER_ID}, PID ${process.pid}] Express app listening on port ${PORT}`);
-});
-// ══════════════════════════════════════════════════════
-// AUTOGRADE + REPORT — bulk-grade all pending submissions
-// then immediately send the progress report email.
-// Streams newline-delimited JSON so the UI shows a live log.
-// ══════════════════════════════════════════════════════
-app.post('/api/admin/autograde-and-report', requireAdmin, async (req, res) => {
-    res.setHeader('Content-Type', 'application/x-ndjson');
-    res.setHeader('Cache-Control', 'no-cache');
-    res.setHeader('X-Accel-Buffering', 'no');
-
-    const send = (obj) => { try { res.write(JSON.stringify(obj) + '\n'); } catch(e) {} };
-
-    try {
-        // 1. Fetch all pending submissions
-        const pending = db.prepare(`
-            SELECT id, candidate_name, email, project_title, auto_score
-            FROM submissions WHERE status = 'pending'
-            ORDER BY submitted_at ASC
-        `).all();
-
-        send({ type: 'start', total: pending.length,
-               message: `Found ${pending.length} pending submission(s) to autograde` });
-
-        // 2. Autograde each one using auto_score only
-        let graded = 0, skipped = 0;
-        const gradeStmt = db.prepare(`UPDATE submissions SET status = 'graded', grade = ? WHERE id = ?`);
-
-        for (const sub of pending) {
-            try {
-                const autoScore = sub.auto_score || 0;
-                const scaled = Math.round((autoScore / 100) * 10);
-                const grade = {
-                    scores: {
-                        correctness: scaled,
-                        codeQuality: Math.round(scaled * 0.8),
-                        logic:       scaled,
-                        style:       Math.round(scaled * 0.7)
-                    },
-                    manualScore:    Math.round(((scaled + Math.round(scaled * 0.8) + scaled + Math.round(scaled * 0.7)) / 4) * 10),
-                    autoScore,
-                    compositeScore: autoScore,
-                    comments:       'Auto-graded based on test results.',
-                    trainerName:    req.user?.name || 'Auto-Grader',
-                    gradedAt:       new Date().toISOString(),
-                    isAutoGrade:    true
-                };
-                gradeStmt.run(JSON.stringify(grade), sub.id);
-                graded++;
-                send({ type: 'graded', id: sub.id, name: sub.candidate_name,
-                       email: sub.email, problem: sub.project_title,
-                       autoScore, compositeScore: autoScore,
-                       message: `✓ ${sub.candidate_name} — ${sub.project_title} → ${autoScore}%` });
-            } catch (e) {
-                skipped++;
-                send({ type: 'error', id: sub.id, message: `✗ Failed: ${sub.candidate_name} — ${e.message}` });
-            }
-        }
-
-        send({ type: 'gradeComplete', graded, skipped,
-               message: `Autograde complete: ${graded} graded, ${skipped} failed` });
-
-        // 3. Build and send report
-        send({ type: 'reportStart', message: 'Building progress report…' });
-
-        const weekLabel = req.body?.weekLabel || `Week ending ${new Date().toISOString().slice(0, 10)}`;
-        const adminEmails = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim()).filter(Boolean);
-
-        if (!adminEmails.length) {
-            send({ type: 'reportSkipped', message: 'No ADMIN_EMAILS configured — report not sent (but grades are saved)' });
-        } else {
-            try {
-                const html = await buildWeeklyReportHTML(weekLabel);
-                await transporter.sendMail({
-                    from:    process.env.SMTP_FROM || '"VirtualLab" <noreply@virtuallab.io>',
-                    to:      adminEmails.join(','),
-                    subject: `📊 VirtualLab Progress Report (Auto-graded) — ${weekLabel}`,
-                    html
-                });
-                send({ type: 'reportSent', sentTo: adminEmails,
-                       message: `📧 Report sent to: ${adminEmails.join(', ')}` });
-                console.log(`[AutogradeReport] Sent to ${adminEmails.join(', ')} by ${req.user?.email}`);
-            } catch (err) {
-                send({ type: 'reportError', message: `Report email failed: ${err.message}` });
-            }
-        }
-
-        send({ type: 'done', graded, skipped, weekLabel });
-
-    } catch (e) {
-        send({ type: 'fatalError', message: e.message });
-    }
-
-    res.end();
 });
