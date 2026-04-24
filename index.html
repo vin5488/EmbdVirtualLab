@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -592,6 +592,19 @@
             </div>
 
             
+            
+<div x-show="currentView === 'hackathon_arena' && hackathonEnabled" class="h-full overflow-y-auto p-10 bg-slate-950">
+<h2 class="text-3xl font-black text-purple-400 mb-6">⚡ Hackathon Arena</h2>
+
+<div class="bg-slate-900 p-6 rounded-xl mb-4">
+<h3 x-text="hackathonProblem.title" class="text-white font-bold"></h3>
+<p x-text="hackathonProblem.description" class="text-slate-400"></p>
+</div>
+
+<textarea x-model="hackathonCode" class="w-full h-40 bg-black text-white"></textarea>
+<button @click="submitHackathonCode()" class="bg-green-600 p-2 mt-2">Submit</button>
+</div>
+
 <!-- Workspace View -->
             <div x-show="currentView === 'workspace'" class="h-full flex overflow-hidden">
                 <!-- Sidebar -->
@@ -2892,6 +2905,51 @@
             const isAdmin = params.get('admin') === 'true';
 
             return {
+
+// ===== HACKATHON FULL MODULE =====
+hackathonEnabled: false,
+hackathonProblem: {},
+hackathonCode: "",
+myHackathonSubmissions: [],
+allHackathonSubmissions: [],
+
+initHackathonForUser() {
+    if (this.user && this.user.role === 'candidate' && window.isVisteonUser(this.user.email)) {
+        this.hackathonEnabled = true;
+        this.hackathonProblem = {
+            id: 1,
+            title: "CAN Message Parser",
+            description: "Parse CAN frame and extract signals efficiently"
+        };
+    }
+},
+
+async submitHackathonCode() {
+    if (!this.hackathonCode) {
+        alert("Write code first");
+        return;
+    }
+    await fetch('/api/hackathon/submit', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Authorization':'Bearer '+this.token},
+        body: JSON.stringify({problemId:this.hackathonProblem.id,code:this.hackathonCode})
+    });
+    alert("Submitted");
+},
+
+async loadAllSubmissions() {
+    const res = await fetch('/api/hackathon/all-submissions');
+    this.allHackathonSubmissions = await res.json();
+},
+
+async evaluateSubmission(sub) {
+    await fetch('/api/hackathon/evaluate',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(sub)
+    });
+    alert("Evaluated");
+},
 
 
                 isLoggedIn: false, // Enforce login screen
@@ -5794,6 +5852,18 @@
             ctx.shadowBlur = 0; // Reset shadow for next frame
         };
     </script>
+<div x-show="currentView === 'hackathon_control'" class="p-6">
+<h2 class="text-xl text-purple-400">Admin Evaluation</h2>
+
+<template x-for="sub in allHackathonSubmissions">
+<div class="bg-slate-900 p-4 mt-3">
+<pre x-text="sub.code"></pre>
+<input x-model="sub.score" placeholder="score">
+<input x-model="sub.feedback" placeholder="feedback">
+<button @click="evaluateSubmission(sub)">Evaluate</button>
+</div>
+</template>
+</div>
 </body>
 
 </html>
