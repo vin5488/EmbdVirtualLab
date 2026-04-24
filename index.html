@@ -527,7 +527,7 @@
                         <div>
                             <div class="text-[10px] font-black text-slate-500 uppercase tracking-widest">Solved</div>
                             <div class="text-2xl font-black text-white"
-                                x-text="solvedCount + ' / ' + (allowedProjects.length || projects.length)">
+                                x-text="solvedCount + ' / ' + (selectedTopic?.id === 'VISTEON_C' || (user?.email && window.isVisteonUser(user.email)) ? 20 : (allowedProjects.length || projects.length))">
                             </div>
                         </div>
                     </div>
