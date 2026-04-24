@@ -1859,7 +1859,7 @@
         <!-- ══════════════════════════════════════════════════════ -->
         <!-- HACKATHON ARENA — Candidate View                       -->
         <!-- ══════════════════════════════════════════════════════ -->
-        <div x-show="currentView === 'hackathon_arena'" class="h-full flex flex-col overflow-hidden bg-slate-950">
+        <div x-show="currentView === 'hackathon_arena' && !hackathonEnabled" class="h-full flex flex-col overflow-hidden bg-slate-950">
 
             <!-- Arena header bar -->
             <div class="bg-slate-900 border-b border-slate-800 px-6 py-3 flex items-center justify-between shrink-0">
@@ -2907,21 +2907,20 @@
             return {
 
 // ===== HACKATHON FULL MODULE =====
-hackathonEnabled: false,
-hackathonProblem: {},
+get hackathonEnabled() {
+    return this.user && this.user.role === 'candidate' && typeof window.isVisteonUser === 'function' && window.isVisteonUser(this.user.email);
+},
+hackathonProblem: {
+    id: 1,
+    title: "CAN Message Parser",
+    description: "Parse CAN frame and extract signals efficiently"
+},
 hackathonCode: "",
 myHackathonSubmissions: [],
 allHackathonSubmissions: [],
 
 initHackathonForUser() {
-    if (this.user && this.user.role === 'candidate' && window.isVisteonUser(this.user.email)) {
-        this.hackathonEnabled = true;
-        this.hackathonProblem = {
-            id: 1,
-            title: "CAN Message Parser",
-            description: "Parse CAN frame and extract signals efficiently"
-        };
-    }
+    // Kept for legacy bindings, state is now reactive via getter
 },
 
 async submitHackathonCode() {
