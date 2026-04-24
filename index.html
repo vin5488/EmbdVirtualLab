@@ -4373,7 +4373,10 @@ async evaluateSubmission(sub) {
                     });
                 },
 
-                get solvedCount() { return this.solvedProjectIds.length; },
+                get solvedCount() { 
+                    const isVisteon = this.selectedTopic?.id === 'VISTEON_C' || (this.user?.email && window.isVisteonUser(this.user.email));
+                    return isVisteon ? this.solvedProjectIds.filter(id => id.startsWith('VCA-')).length : this.solvedProjectIds.length; 
+                },
                 get totalProgress() { return Math.round((this.solvedCount / (this.selectedTopic?.id === 'VISTEON_C' ? 20 : (this.allowedProjects.length || this.projects.length))) * 100) || 0; },
                 get totalPointsEarned() {
                     return this.projects.filter(p => this.solvedProjectIds.includes(p.id))
