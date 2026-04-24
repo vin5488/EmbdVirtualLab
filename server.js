@@ -573,7 +573,7 @@ app.get('/api/users', requireAdmin, (req, res) => {
     const users = db.prepare(`
         SELECT u.id, u.name, u.email, u.role, u.created_at,
                COUNT(DISTINCT s.id) as submission_count,
-               COUNT(DISTINCT CASE WHEN p.solved = 1 AND p.project_id LIKE 'VCA-%' THEN p.project_id END) as solved_count
+               MIN(COUNT(DISTINCT CASE WHEN p.solved = 1 AND p.project_id LIKE 'VCA-%' THEN p.project_id END), 20) as solved_count
         FROM users u
         LEFT JOIN submissions s ON s.email = u.email
         LEFT JOIN progress p ON p.email = u.email
@@ -639,7 +639,7 @@ app.get('/api/progress', requireAuth, (req, res) => {
 app.get('/api/leaderboard', (req, res) => {
     const leaders = db.prepare(`
         SELECT u.name, u.email,
-               COUNT(DISTINCT CASE WHEN p.solved = 1 AND p.project_id LIKE 'VCA-%' THEN p.project_id END) as solved_count,
+               MIN(COUNT(DISTINCT CASE WHEN p.solved = 1 AND p.project_id LIKE 'VCA-%' THEN p.project_id END), 20) as solved_count,
                COUNT(DISTINCT s.id) as submission_count
         FROM users u
         LEFT JOIN progress p ON p.email = u.email
@@ -1499,7 +1499,7 @@ app.get('/api/hackathon/leaderboard', (req, res) => {
 async function buildWeeklyReportHTML(weekLabel) {
     const rows = db.prepare(`
         SELECT u.name, u.email,
-               COUNT(DISTINCT CASE WHEN p.solved = 1 AND p.project_id LIKE 'VCA-%' THEN p.project_id END) as solved_count,
+               MIN(COUNT(DISTINCT CASE WHEN p.solved = 1 AND p.project_id LIKE 'VCA-%' THEN p.project_id END), 20) as solved_count,
                COUNT(DISTINCT s.id) as submission_count,
                ROUND(AVG(CASE WHEN s.auto_score IS NOT NULL THEN s.auto_score END), 1) as avg_score,
                SUM(COALESCE(s.violation_count, 0)) as total_violations
